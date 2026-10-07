@@ -1,0 +1,35 @@
+{
+  "name": "pra-pdf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PRA PDF by PRAVERSE — Professional Online PDF & Document Toolkit",
+  "scripts": {
+    "dev": "vite",
+    "server": "tsx src/server/server.ts",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1147.0",
+    "@aws-sdk/s3-request-presigner": "^3.1147.0",
+    "@cantoo/pdf-lib": "^2.11.1",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
+    "jszip": "^3.10.1",
+    "lucide": "^0.460.0",
+    "markdown-it": "^14.1.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
+    "tesseract.js": "^5.1.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.4"
+  }
+}
