@@ -46,6 +46,7 @@ export interface BackendConfig {
   };
   processor: {
     baseUrl: string;
+    sharedSecret: string;
     isConfigured: boolean;
   };
 }
@@ -100,6 +101,7 @@ export const CONFIG: BackendConfig = {
   },
   processor: {
     baseUrl: (process.env.PROCESSOR_BASE_URL || '').trim(),
+    sharedSecret: (process.env.PROCESSOR_SHARED_SECRET || 'pra-pdf-processor-internal-secret-2026').trim(),
     isConfigured: Boolean((process.env.PROCESSOR_BASE_URL || '').trim()),
   },
 };
@@ -119,6 +121,7 @@ export function redactSecrets<T extends Record<string, any>>(obj: T): T {
     'keyid',
     'password',
     'secret',
+    'sharedsecret',
     'authorization',
   ];
 

@@ -15,6 +15,7 @@ export interface ProcessorJobPayload {
   inputStorageKey: string;
   outputStorageKey: string;
   originalFilename: string;
+  storageProvider?: string;
   options?: Record<string, any>;
 }
 
@@ -27,23 +28,31 @@ export interface ProcessorJobStatusResponse {
   processingTimeMs?: number;
 }
 
+export interface SubmitJobResult {
+  accepted: boolean;
+  status: 'COMPLETED' | 'QUEUED' | 'PROCESSOR_UNAVAILABLE';
+  outputStorageKey?: string;
+  outputSize?: number;
+  outputSha256?: string;
+  processingTimeMs?: number;
+  message?: string;
+}
+
 export class ProcessorAdapter {
   private baseUrl: string;
+  private sharedSecret: string;
   public readonly isConfigured: boolean;
 
   constructor() {
     this.baseUrl = CONFIG.processor.baseUrl.replace(/\/+$/, '');
+    this.sharedSecret = CONFIG.processor.sharedSecret;
     this.isConfigured = CONFIG.processor.isConfigured;
   }
 
   /**
    * Submits a processing job to the dedicated processing engine
    */
-  public async submitJob(payload: ProcessorJobPayload): Promise<{
-    accepted: boolean;
-    status: 'QUEUED' | 'PROCESSOR_UNAVAILABLE';
-    message?: string;
-  }> {
+  public async submitJob(payload: ProcessorJobPayload): Promise<SubmitJobResult> {
     if (!this.isConfigured) {
       logger.warn('PROCESSOR_SUBMISSION_UNAVAILABLE', {
         jobId: payload.jobId,
@@ -64,11 +73,18 @@ export class ProcessorAdapter {
     });
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/process`, {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sharedSecret) {
+        headers['Authorization'] = `Bearer ${this.sharedSecret}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/internal/v1/process`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15000), // 15s handshake timeout
+        signal: AbortSignal.timeout(30000), // 30s timeout
       });
 
       if (!response.ok) {
@@ -85,7 +101,20 @@ export class ProcessorAdapter {
         };
       }
 
-      const resData = await response.json();
+      const resData: any = await response.json();
+
+      if (resData.ok && resData.status === 'COMPLETED') {
+        return {
+          accepted: true,
+          status: 'COMPLETED',
+          outputStorageKey: resData.output?.storageKey,
+          outputSize: resData.output?.sizeBytes,
+          outputSha256: resData.output?.sha256,
+          processingTimeMs: resData.processingTimeMs,
+          message: 'Job completed by processing engine',
+        };
+      }
+
       return {
         accepted: true,
         status: 'QUEUED',
@@ -113,9 +142,16 @@ export class ProcessorAdapter {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/status`, {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+      };
+      if (this.sharedSecret) {
+        headers['Authorization'] = `Bearer ${this.sharedSecret}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/internal/v1/jobs/${encodeURIComponent(jobId)}/status`, {
         method: 'GET',
-        headers: { Accept: 'application/json' },
+        headers,
         signal: AbortSignal.timeout(10000),
       });
 
@@ -134,8 +170,14 @@ export class ProcessorAdapter {
     if (!this.isConfigured) return true;
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      const headers: Record<string, string> = {};
+      if (this.sharedSecret) {
+        headers['Authorization'] = `Bearer ${this.sharedSecret}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/internal/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
         method: 'POST',
+        headers,
         signal: AbortSignal.timeout(5000),
       });
       return response.ok;

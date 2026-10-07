@@ -121,6 +121,7 @@ export class JobService {
         inputStorageKey: inputKey,
         outputStorageKey: outputKey,
         originalFilename: cleanFilename,
+        storageProvider: providerId,
         options: input.options,
       });
 
@@ -143,10 +144,23 @@ export class JobService {
         };
       }
 
-      job = jobStore.update(jobId, {
-        status: 'QUEUED',
-        outputStorageKey: outputKey,
-      })!;
+      if (processorSubmission.status === 'COMPLETED') {
+        job = jobStore.update(jobId, {
+          status: 'COMPLETED',
+          outputStorageKey: processorSubmission.outputStorageKey || outputKey,
+          completedAt: new Date().toISOString(),
+          processingMetadata: {
+            outputSize: processorSubmission.outputSize,
+            outputSha256: processorSubmission.outputSha256,
+            processingTimeMs: processorSubmission.processingTimeMs,
+          },
+        })!;
+      } else {
+        job = jobStore.update(jobId, {
+          status: 'QUEUED',
+          outputStorageKey: outputKey,
+        })!;
+      }
 
       return {
         success: true,

@@ -78,12 +78,16 @@ The Telegram adapter (`src/server/backup/telegramBackup.ts`) isolates backup ope
 
 ---
 
-## 5. Processing Server Abstraction
+## 5. Processing Server Abstraction & Dedicated Processing Server Integration
 
-Heavy CPU/memory tasks (LibreOffice, OCR engines, Ghostscript) are separated from the API gateway:
+Heavy CPU/memory tasks are decoupled into a dedicated Processing Server (`src/processor/`):
 - **Client**: `ProcessorAdapter` (`src/server/processor/processorAdapter.ts`).
-- **Honest Availability**: When `PROCESSOR_BASE_URL` is unconfigured, the system returns `PROCESSOR_UNAVAILABLE` rather than faking success or fabricating progress bars.
+- **Endpoint**: Configured via `PROCESSOR_BASE_URL` (e.g. `http://127.0.0.1:3002`).
+- **Authentication**: Secured with `PROCESSOR_SHARED_SECRET` via `Authorization: Bearer <secret>`.
+- **Honest Availability**: When `PROCESSOR_BASE_URL` is empty, the system returns `PROCESSOR_UNAVAILABLE` rather than faking success or fabricating progress bars. When configured, it dispatches jobs to `/internal/v1/process`.
+- **First Supported Service**: `compress-pdf` executing real object stream compression, deduplication, and PDF structural validation.
 - **Methods**: `submitJob`, `checkStatus`, `cancelJob`.
+- **Full Documentation**: See `Processing-Server.md` for dedicated architecture, endpoints, and security details.
 
 ---
 
