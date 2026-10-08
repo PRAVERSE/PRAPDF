@@ -78,6 +78,15 @@ function logSafeTelemetry(data: {
   }
 }
 
+export const ACTIVE_PRODUCTION_SERVICES: WorkerServiceName[] = [
+  'jpg-to-pdf',
+  'png-to-pdf',
+  'rotate-pdf',
+  'crop-pdf',
+  'organize-pdf',
+  'delete-pdf-pages',
+];
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -97,9 +106,9 @@ export default {
       return jsonResponse({
         status: 'healthy',
         runtime: 'Cloudflare Worker (workerd)',
-        version: '1.0.0',
-        phase: 'Phase 3A Controlled Production Migration',
-        activeProductionServices: ['jpg-to-pdf'],
+        version: '1.1.0',
+        phase: 'Phase 3B Controlled Production Migration',
+        activeProductionServices: ACTIVE_PRODUCTION_SERVICES,
         maxUploadBytes: MAX_UPLOAD_BYTES,
         maxUploadMb: 50,
       });
@@ -207,8 +216,8 @@ export default {
           );
         }
 
-        // Security Validation 2: Phase 3A restricts production route to jpg-to-pdf ONLY
-        if (serviceName !== 'jpg-to-pdf') {
+        // Security Validation 2: Phase 3B restricts production route to the 6 whitelisted services
+        if (!ACTIVE_PRODUCTION_SERVICES.includes(serviceName as WorkerServiceName)) {
           const durationMs = Math.round(performance.now() - startTime);
           logSafeTelemetry({
             requestId,
@@ -225,7 +234,7 @@ export default {
               requestId,
               service: serviceName,
               errorCode: 'UNSUPPORTED_SERVICE',
-              message: `Service '${serviceName}' is not enabled for production Worker processing in Phase 3A. Only 'jpg-to-pdf' is active.`,
+              message: `Service '${serviceName}' is not enabled for production Worker processing in Phase 3B. Active services: ${ACTIVE_PRODUCTION_SERVICES.join(', ')}.`,
             },
             400
           );
@@ -280,13 +289,41 @@ export default {
           );
         }
 
-        // Security Validation 5: Magic byte signature verification for JPEG (FF D8 FF)
-        if (
-          inputBuffer.length < 4 ||
-          inputBuffer[0] !== 0xff ||
-          inputBuffer[1] !== 0xd8 ||
-          inputBuffer[2] !== 0xff
+        // Security Validation 5: Magic byte signature verification by service
+        let fileTypeValid = true;
+        let expectedTypeMsg = '';
+
+        if (serviceName === 'jpg-to-pdf') {
+          // JPEG: FF D8 FF
+          fileTypeValid =
+            inputBuffer.length >= 4 &&
+            inputBuffer[0] === 0xff &&
+            inputBuffer[1] === 0xd8 &&
+            inputBuffer[2] === 0xff;
+          expectedTypeMsg = 'Invalid file format. Only JPEG images are supported for jpg-to-pdf.';
+        } else if (serviceName === 'png-to-pdf') {
+          // PNG: 89 50 4E 47
+          fileTypeValid =
+            inputBuffer.length >= 8 &&
+            inputBuffer[0] === 0x89 &&
+            inputBuffer[1] === 0x50 &&
+            inputBuffer[2] === 0x4e &&
+            inputBuffer[3] === 0x47;
+          expectedTypeMsg = 'Invalid file format. Only PNG images are supported for png-to-pdf.';
+        } else if (
+          ['rotate-pdf', 'crop-pdf', 'organize-pdf', 'delete-pdf-pages'].includes(serviceName)
         ) {
+          // PDF: 25 50 44 46 (%PDF)
+          fileTypeValid =
+            inputBuffer.length >= 5 &&
+            inputBuffer[0] === 0x25 &&
+            inputBuffer[1] === 0x50 &&
+            inputBuffer[2] === 0x44 &&
+            inputBuffer[3] === 0x46;
+          expectedTypeMsg = `Invalid file format. Only valid PDF documents (%PDF) are supported for ${serviceName}.`;
+        }
+
+        if (!fileTypeValid) {
           const durationMs = Math.round(performance.now() - startTime);
           logSafeTelemetry({
             requestId,
@@ -303,14 +340,18 @@ export default {
               requestId,
               service: serviceName,
               errorCode: 'INVALID_FILE_TYPE',
-              message: 'Invalid file format. Only JPEG images are supported for jpg-to-pdf.',
+              message: expectedTypeMsg,
             },
             400
           );
         }
 
-        // Execution: Pure in-memory JPG to PDF conversion (Zero native deps, zero branding)
-        const result = await processJpgToPdfWorker(inputBuffer, options);
+        // Execution: Pure in-memory Worker execution (Zero native deps, zero branding)
+        const result = await executeWorkerService(
+          serviceName as WorkerServiceName,
+          inputBuffer,
+          options
+        );
         const durationMs = Math.round(performance.now() - startTime);
 
         logSafeTelemetry({

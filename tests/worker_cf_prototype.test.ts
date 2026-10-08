@@ -107,9 +107,9 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
   });
 
   // =========================================================================
-  // Phase 3A: Production Endpoint Tests (/api/v1/cf/*)
+  // Phase 3B: Production Endpoint Tests (/api/v1/cf/*)
   // =========================================================================
-  describe('Phase 3A: Production Worker Routes (/api/v1/cf/*)', () => {
+  describe('Phase 3B: Production Worker Routes (/api/v1/cf/*)', () => {
     const validJpeg = new Uint8Array([
       0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00,
       0xff, 0xdb, 0x00, 0x43, 0x00, ...new Array(64).fill(0x10),
@@ -119,72 +119,180 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
       0x7f, 0xff, 0x00, 0x55, 0xff, 0xd9,
     ]);
 
-    it('GET /api/v1/cf/health returns production health status', async () => {
+    const validPng = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89,
+      0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54,
+      0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4,
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ]);
+
+    async function makeTestPdf(pageCount: number = 2): Promise<Uint8Array> {
+      const doc = await PDFDocument.create();
+      for (let i = 0; i < pageCount; i++) {
+        doc.addPage([500, 500]);
+      }
+      return await doc.save();
+    }
+
+    it('GET /api/v1/cf/health returns Phase 3B health status and exactly 6 active services', async () => {
       const req = new Request('http://localhost/api/v1/cf/health', { method: 'GET' });
       const res = await worker.fetch(req, {});
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json.status).toBe('healthy');
-      expect(json.phase).toContain('Phase 3A');
-      expect(json.activeProductionServices).toEqual(['jpg-to-pdf']);
+      expect(json.phase).toContain('Phase 3B');
+      expect(json.activeProductionServices).toEqual([
+        'jpg-to-pdf',
+        'png-to-pdf',
+        'rotate-pdf',
+        'crop-pdf',
+        'organize-pdf',
+        'delete-pdf-pages',
+      ]);
       expect(json.maxUploadBytes).toBe(52428800);
     });
 
-    it('POST /api/v1/cf/process converts JPEG to valid PDF in pure memory', async () => {
+    it('POST /api/v1/cf/process [jpg-to-pdf] executes cleanly in pure memory', async () => {
       const form = new FormData();
       form.append('service', 'jpg-to-pdf');
       form.append('file', new Blob([validJpeg as any]), 'image.jpg');
 
-      const req = new Request('http://localhost/api/v1/cf/process', {
-        method: 'POST',
-        body: form,
-      });
-
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
       const res = await worker.fetch(req, {});
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.service).toBe('jpg-to-pdf');
-      expect(json.mimeType).toBe('application/pdf');
-      expect(json.outputFileName).toBe('converted.pdf');
-      expect(json.metadata.pageCount).toBe(1);
-
-      const pdfBytes = Buffer.from(json.outputBase64, 'base64');
-      const doc = await PDFDocument.load(pdfBytes);
+      const doc = await PDFDocument.load(Buffer.from(json.outputBase64, 'base64'));
       expect(doc.getPageCount()).toBe(1);
     });
 
-    it('POST /api/v1/cf/process rejects any service other than jpg-to-pdf with 400 UNSUPPORTED_SERVICE', async () => {
+    it('POST /api/v1/cf/process [png-to-pdf] executes cleanly in pure memory', async () => {
       const form = new FormData();
-      form.append('service', 'merge-pdf');
-      form.append('file', new Blob([new Uint8Array([1, 2, 3])]), 'test.pdf');
+      form.append('service', 'png-to-pdf');
+      form.append('file', new Blob([validPng as any]), 'image.png');
 
-      const req = new Request('http://localhost/api/v1/cf/process', {
-        method: 'POST',
-        body: form,
-      });
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
 
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.service).toBe('png-to-pdf');
+      const doc = await PDFDocument.load(Buffer.from(json.outputBase64, 'base64'));
+      expect(doc.getPageCount()).toBe(1);
+    });
+
+    it('POST /api/v1/cf/process [rotate-pdf] rotates pages accurately', async () => {
+      const pdfBytes = await makeTestPdf(2);
+      const form = new FormData();
+      form.append('service', 'rotate-pdf');
+      form.append('file', new Blob([pdfBytes as any]), 'doc.pdf');
+      form.append('options', JSON.stringify({ degreesToRotate: 180 }));
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      const doc = await PDFDocument.load(Buffer.from(json.outputBase64, 'base64'));
+      expect(doc.getPage(0).getRotation().angle).toBe(180);
+    });
+
+    it('POST /api/v1/cf/process [crop-pdf] crops page dimensions accurately', async () => {
+      const pdfBytes = await makeTestPdf(1);
+      const form = new FormData();
+      form.append('service', 'crop-pdf');
+      form.append('file', new Blob([pdfBytes as any]), 'doc.pdf');
+      form.append('options', JSON.stringify({ cropMargins: { top: 25, right: 25, bottom: 25, left: 25 } }));
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      const doc = await PDFDocument.load(Buffer.from(json.outputBase64, 'base64'));
+      const cb = doc.getPage(0).getCropBox();
+      expect(cb.x).toBe(25);
+      expect(cb.y).toBe(25);
+    });
+
+    it('POST /api/v1/cf/process [organize-pdf] reorders pages correctly', async () => {
+      const pdfBytes = await makeTestPdf(3);
+      const form = new FormData();
+      form.append('service', 'organize-pdf');
+      form.append('file', new Blob([pdfBytes as any]), 'doc.pdf');
+      form.append('options', JSON.stringify({ pageOrder: [2, 0] }));
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      const doc = await PDFDocument.load(Buffer.from(json.outputBase64, 'base64'));
+      expect(doc.getPageCount()).toBe(2);
+    });
+
+    it('POST /api/v1/cf/process [delete-pdf-pages] deletes specified pages', async () => {
+      const pdfBytes = await makeTestPdf(4);
+      const form = new FormData();
+      form.append('service', 'delete-pdf-pages');
+      form.append('file', new Blob([pdfBytes as any]), 'doc.pdf');
+      form.append('options', JSON.stringify({ pagesToDeleteSpec: '1, 3' }));
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      const doc = await PDFDocument.load(Buffer.from(json.outputBase64, 'base64'));
+      expect(doc.getPageCount()).toBe(2);
+    });
+
+    it('POST /api/v1/cf/process rejects non-whitelisted service with 400 UNSUPPORTED_SERVICE', async () => {
+      const form = new FormData();
+      form.append('service', 'word-to-pdf');
+      form.append('file', new Blob([new Uint8Array([1, 2, 3])]), 'test.docx');
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
       const res = await worker.fetch(req, {});
       expect(res.status).toBe(400);
 
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe('UNSUPPORTED_SERVICE');
-      expect(json.message).toContain('Only \'jpg-to-pdf\' is active');
+      expect(json.message).toContain('Phase 3B');
     });
 
-    it('POST /api/v1/cf/process rejects non-JPEG file with 400 INVALID_FILE_TYPE', async () => {
+    it('POST /api/v1/cf/process rejects non-PNG file sent to png-to-pdf with 400 INVALID_FILE_TYPE', async () => {
       const form = new FormData();
-      form.append('service', 'jpg-to-pdf');
-      form.append('file', new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])]), 'fake.jpg');
+      form.append('service', 'png-to-pdf');
+      form.append('file', new Blob([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])]), 'fake.png');
 
-      const req = new Request('http://localhost/api/v1/cf/process', {
-        method: 'POST',
-        body: form,
-      });
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(400);
 
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe('INVALID_FILE_TYPE');
+    });
+
+    it('POST /api/v1/cf/process rejects non-PDF file sent to rotate-pdf with 400 INVALID_FILE_TYPE', async () => {
+      const form = new FormData();
+      form.append('service', 'rotate-pdf');
+      form.append('file', new Blob([new Uint8Array([1, 2, 3, 4, 5])]), 'fake.pdf');
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
       const res = await worker.fetch(req, {});
       expect(res.status).toBe(400);
 

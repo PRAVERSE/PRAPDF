@@ -132,7 +132,61 @@ export async function splitPdf(
 }
 
 /**
+ * Helper to dispatch PDF organization services to Cloudflare Worker
+ */
+async function callWorkerProcess(
+  service: string,
+  file: File,
+  options?: any,
+  onProgress?: (percent: number, status: string) => void
+): Promise<Uint8Array> {
+  onProgress?.(15, `Uploading document to Cloudflare Worker (${service})...`);
+  const formData = new FormData();
+  formData.append('service', service);
+  formData.append('file', file);
+  if (options) {
+    formData.append('options', JSON.stringify(options));
+  }
+
+  onProgress?.(45, 'Processing in Cloudflare Worker runtime...');
+  const response = await fetch('/api/v1/cf/process', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Processing failed with HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.message) {
+        errorDetail = errJson.message;
+      }
+    } catch {
+      // ignore json parse error
+    }
+    throw new Error(`Cloudflare Worker error: ${errorDetail}`);
+  }
+
+  onProgress?.(85, 'Receiving generated PDF...');
+  const json = await response.json();
+  if (!json.success || !json.outputBase64) {
+    throw new Error(json.message || 'Worker processing failed to return valid PDF data.');
+  }
+
+  const binaryString = atob(json.outputBase64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  onProgress?.(100, 'Complete');
+  return bytes;
+}
+
+/**
  * Tool 16: Organize PDF Pages
+ * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
  */
 export async function organizePdfPages(
   file: File,
@@ -146,31 +200,12 @@ export async function organizePdfPages(
     throw new Error('Organized page list cannot be empty.');
   }
 
-  options.onProgress?.(20, 'Reading source document...');
-  const buffer = await file.arrayBuffer();
-  const srcDoc = await loadPDF(buffer);
-
-  options.onProgress?.(50, 'Reorganizing and rotating pages...');
-  const newDoc = await PDFDocument.create();
-
-  for (let i = 0; i < pageOrder.length; i++) {
-    const item = pageOrder[i];
-    const [copiedPage] = await newDoc.copyPages(srcDoc, [item.pageIndex]);
-
-    if (item.rotation) {
-      const currentAngle = copiedPage.getRotation().angle;
-      copiedPage.setRotation(degrees((currentAngle + item.rotation) % 360));
-    }
-
-    newDoc.addPage(copiedPage);
-  }
-
-  options.onProgress?.(90, 'Finalizing organized PDF...');
-  return await newDoc.save();
+  return await callWorkerProcess('organize-pdf', file, { pageOrder }, options.onProgress);
 }
 
 /**
  * Tool 17: Delete PDF Pages
+ * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
  */
 export async function deletePdfPages(
   file: File,
@@ -180,31 +215,7 @@ export async function deletePdfPages(
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
 
-  options.onProgress?.(20, 'Reading source PDF...');
-  const buffer = await file.arrayBuffer();
-  const srcDoc = await loadPDF(buffer);
-  const totalPages = srcDoc.getPageCount();
-
-  const toDelete = new Set(parsePageRangeString(pagesToDeleteSpec, totalPages));
-  const pagesToKeep: number[] = [];
-
-  for (let i = 0; i < totalPages; i++) {
-    if (!toDelete.has(i)) {
-      pagesToKeep.push(i);
-    }
-  }
-
-  if (pagesToKeep.length === 0) {
-    throw new Error('Cannot delete all pages from the document.');
-  }
-
-  options.onProgress?.(60, 'Deleting requested pages...');
-  const newDoc = await PDFDocument.create();
-  const copiedPages = await newDoc.copyPages(srcDoc, pagesToKeep);
-  copiedPages.forEach((page) => newDoc.addPage(page));
-
-  options.onProgress?.(95, 'Saving updated PDF...');
-  return await newDoc.save();
+  return await callWorkerProcess('delete-pdf-pages', file, { pagesToDeleteSpec }, options.onProgress);
 }
 
 /**
@@ -239,6 +250,7 @@ export async function extractPdfPages(
 
 /**
  * Tool 19: Rotate PDF
+ * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
  */
 export async function rotatePdf(
   file: File,
@@ -249,28 +261,17 @@ export async function rotatePdf(
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
 
-  options.onProgress?.(20, 'Loading PDF for rotation...');
-  const buffer = await file.arrayBuffer();
-  const doc = await loadPDF(buffer);
-  const totalPages = doc.getPageCount();
-
-  const targetPages = pageIndices && pageIndices.length > 0 ? pageIndices : Array.from({ length: totalPages }, (_, i) => i);
-
-  options.onProgress?.(50, `Rotating ${targetPages.length} pages by ${degreesToRotate}°...`);
-  for (const idx of targetPages) {
-    if (idx >= 0 && idx < totalPages) {
-      const page = doc.getPage(idx);
-      const currentAngle = page.getRotation().angle;
-      page.setRotation(degrees((currentAngle + degreesToRotate) % 360));
-    }
-  }
-
-  options.onProgress?.(90, 'Saving rotated PDF...');
-  return await doc.save();
+  return await callWorkerProcess(
+    'rotate-pdf',
+    file,
+    { degreesToRotate, pageIndices },
+    options.onProgress
+  );
 }
 
 /**
  * Tool 20: Crop PDF
+ * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
  */
 export async function cropPdf(
   file: File,
@@ -280,26 +281,7 @@ export async function cropPdf(
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
 
-  options.onProgress?.(20, 'Loading PDF for cropping...');
-  const buffer = await file.arrayBuffer();
-  const doc = await loadPDF(buffer);
-  const totalPages = doc.getPageCount();
-
-  options.onProgress?.(50, 'Applying crop boundaries...');
-  for (let i = 0; i < totalPages; i++) {
-    const page = doc.getPage(i);
-    const { width, height } = page.getSize();
-
-    const newX = cropMargins.left;
-    const newY = cropMargins.bottom;
-    const newWidth = Math.max(10, width - cropMargins.left - cropMargins.right);
-    const newHeight = Math.max(10, height - cropMargins.top - cropMargins.bottom);
-
-    page.setCropBox(newX, newY, newWidth, newHeight);
-  }
-
-  options.onProgress?.(90, 'Saving cropped PDF...');
-  return await doc.save();
+  return await callWorkerProcess('crop-pdf', file, { cropMargins }, options.onProgress);
 }
 
 /**

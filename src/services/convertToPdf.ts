@@ -94,6 +94,7 @@ export async function convertJpgToPdf(
 
 /**
  * Tool 2: PNG to PDF
+ * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
  */
 export async function convertPngToPdf(
   file: File,
@@ -102,24 +103,56 @@ export async function convertPngToPdf(
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
 
-  options.onProgress?.(20, 'Reading PNG image...');
-  const arrayBuffer = await file.arrayBuffer();
+  options.onProgress?.(15, 'Uploading PNG to Cloudflare Worker...');
 
-  options.onProgress?.(50, 'Preserving transparency & encoding...');
-  const doc = await PDFDocument.create();
-  const image = await doc.embedPng(arrayBuffer);
+  const formData = new FormData();
+  formData.append('service', 'png-to-pdf');
+  formData.append('file', file);
+  if (options.pageSize || options.orientation || options.margin) {
+    formData.append(
+      'options',
+      JSON.stringify({
+        pageSize: options.pageSize,
+        orientation: options.orientation,
+        margin: options.margin,
+      })
+    );
+  }
 
-  const imgDims = image.scale(1);
-  const page = doc.addPage([imgDims.width, imgDims.height]);
-  page.drawImage(image, {
-    x: 0,
-    y: 0,
-    width: imgDims.width,
-    height: imgDims.height,
+  options.onProgress?.(45, 'Processing PNG in Cloudflare Worker runtime...');
+  const response = await fetch('/api/v1/cf/process', {
+    method: 'POST',
+    body: formData,
   });
 
-  options.onProgress?.(90, 'Finalizing PDF...');
-  return await doc.save();
+  if (!response.ok) {
+    let errorDetail = `Processing failed with HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.message) {
+        errorDetail = errJson.message;
+      }
+    } catch {
+      // ignore json parse error
+    }
+    throw new Error(`Cloudflare Worker error: ${errorDetail}`);
+  }
+
+  options.onProgress?.(85, 'Receiving generated PDF...');
+  const json = await response.json();
+  if (!json.success || !json.outputBase64) {
+    throw new Error(json.message || 'Worker processing failed to return valid PDF data.');
+  }
+
+  const binaryString = atob(json.outputBase64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  options.onProgress?.(100, 'Complete');
+  return bytes;
 }
 
 /**
