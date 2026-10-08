@@ -20,6 +20,7 @@ node_modules/
 
 # Temporary directories and local job artifacts
 .temp_pra_jobs/
+.processor_tmp/
 tmp/
 temp/
 *.tmp

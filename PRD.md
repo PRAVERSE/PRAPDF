@@ -150,3 +150,26 @@ Every tool follows a unified 5-step intuitive flow:
 5. All open-source licenses and attribution obligations are completely satisfied.
 6. The test suite passes cleanly, and temporary test artifacts are deleted.
 7. PRA PDF runs locally with a clean, documented start command and test verification workflow.
+
+---
+
+## 10. Core Operational Constraints & Platform Rules
+
+### 10.1. Zero-Watermark Policy
+- **100% Clean Documents:** PRA PDF enforces an absolute zero-unsolicited-branding policy.
+- Under **no circumstances** will the platform ever add a "Created with PRA PDF", company logo, footer watermark, or promotional stamp to any generated, converted, or exported document.
+- Watermarks are applied **only** when the user explicitly configures the Watermark tool (`watermark-pdf`), using solely their own custom text, formatting, and angle.
+
+### 10.2. Honest Capability & Status Reporting
+- Zero fake progress bars, simulated loaders, or mock success states.
+- If an operation fails, the system provides immediate, truthful error messaging with accurate HTTP status codes and error definitions.
+- When an external processing server is unconfigured, endpoints report `PROCESSOR_UNAVAILABLE` rather than faking execution.
+
+### 10.3. Strict Test Artifact Cleanup
+- All temporary files generated during unit, integration, or manual testing must be purged immediately upon test completion.
+- No temporary test PDFs, mock images, or scratch archives are ever committed to the repository.
+
+### 10.4. Ephemeral Retention Policies
+- Temporary Backblaze B2 files: Purged automatically ~10 minutes after job creation.
+- Telegram audit backups: Original uploads only, purged after ~24 hours via scheduled bot sweeps.
+- Local processor workspaces: Purged immediately upon output upload.

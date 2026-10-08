@@ -19,6 +19,7 @@ In accordance with open-source licensing principles:
 
 ### 2.1. BentoPDF
 - **Upstream Project:** BentoPDF (alam00000/bentopdf)
+- **Reference Audited Commit:** `3a5f146d1b89d54dc7ca576aa6797c8bd3e42b97` (v2.8.8)
 - **Primary Authors / Copyright:** Copyright (c) BentoPDF Contributors
 - **License:** GNU Affero General Public License v3.0 (AGPL-3.0)
 - **Reused / Adapted Components:** 
@@ -30,6 +31,7 @@ In accordance with open-source licensing principles:
 
 ### 2.2. Stirling-PDF
 - **Upstream Project:** Stirling-PDF (Stirling-Tools/Stirling-PDF)
+- **Reference Audited Commit:** `824339edc58d4658f50c2077cda60c8ecf718b6e`
 - **Primary Authors / Copyright:** Copyright (c) 2025 Stirling PDF Inc.
 - **License:** MIT License (Core Engine and Community Modules)
 - **Reused / Adapted Components:**
@@ -49,6 +51,7 @@ In accordance with open-source licensing principles:
 
 ### 2.3. PDFCraft
 - **Upstream Project:** PDFCraft (rad03i2/pdfcraft)
+- **Reference Audited Commit:** `3375313c5a3dce4eac748ff9675172026709d6ed`
 - **Primary Authors / Copyright:** Copyright (c) 2026 Radwan Abdulhadi Ahmed
 - **License:** MIT License
 - **Reused / Adapted Components:**
@@ -58,6 +61,7 @@ In accordance with open-source licensing principles:
 
 ### 2.4. PDFArranger
 - **Upstream Project:** PDFArranger (pdfarranger/pdfarranger)
+- **Reference Audited Commit:** `fb76e09762677fe5c3e205bb89ca474500fce53c`
 - **Primary Authors / Copyright:** Copyright (c) Jérôme Robert, Konstantinos Poulios, and contributors
 - **License:** GNU General Public License v3.0 (GPL-3.0)
 - **Reused / Adapted Components:**
