@@ -23,6 +23,7 @@ node_modules/
 tmp/
 temp/
 *.tmp
+*.traineddata
 
 # Production build output
 dist/

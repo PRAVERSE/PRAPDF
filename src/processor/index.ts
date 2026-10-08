@@ -8,6 +8,6 @@ export * from './logger';
 export * from './auth';
 export * from './workspace';
 export * from './validator';
-export * from './engines/compressPdf';
+export * from './engines';
 export * from './routes';
 export * from './server';

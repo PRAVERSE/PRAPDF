@@ -14,6 +14,7 @@ import { storageManager } from '../storage/storageManager';
 import { telegramBackup } from '../backup/telegramBackup';
 import { processorAdapter } from '../processor/processorAdapter';
 import { SecurityValidator } from '../security/validation';
+import { getServiceById } from '../servicesRegistry';
 import { logger } from '../logger';
 
 export class JobService {
@@ -113,7 +114,10 @@ export class JobService {
       })!;
 
       // Step C: Dispatch to Processing Server
-      const outputKey = storageManager.generateOutputKey(jobId, `output_${safeFileId}`);
+      const serviceDef = getServiceById(input.serviceId);
+      const outputExt = serviceDef?.outputExtension || '.pdf';
+      const outputSafeFileId = SecurityValidator.generateFileId(outputExt);
+      const outputKey = storageManager.generateOutputKey(jobId, `output_${outputSafeFileId}`);
 
       const processorSubmission = await processorAdapter.submitJob({
         jobId,

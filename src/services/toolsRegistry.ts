@@ -67,7 +67,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     description: 'Combine multiple mixed images (JPG, PNG, WebP) into a single multi-page PDF document.',
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
-    acceptedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.bmp'],
+    acceptedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.zip'],
     multiple: true,
   },
   {

@@ -36,11 +36,7 @@ export async function processCompressPdf(
   // Load PDF document
   const pdfDoc = await PDFDocument.load(inputBuffer, { ignoreEncryption: true });
 
-  // 1. Standardize and normalize metadata
-  pdfDoc.setProducer('PRA PDF Engine (A PRAVERSE Company)');
-  pdfDoc.setCreator('PRA PDF High-Efficiency Processor');
-
-  // 2. Normalize page dictionary structures
+  // 1. Normalize page dictionary structures
   const pages = pdfDoc.getPages();
   for (const page of pages) {
     page.node.normalize();

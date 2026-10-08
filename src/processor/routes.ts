@@ -2,18 +2,112 @@
  * PRA PDF — Processing Server API Router
  * A PRAVERSE Company
  * Handles /internal/v1/... endpoints with authentication, B2 IO, and real PDF engine execution.
+ * Full execution for all 30 canonical document services.
  */
 
 import { IncomingMessage, ServerResponse } from 'http';
 import fs from 'fs';
+import path from 'path';
 import { PROCESSOR_CONFIG } from './config';
 import { procLogger } from './logger';
 import { verifyProcessorAuth } from './auth';
 import { workspaceManager } from './workspace';
 import { PdfValidator } from './validator';
-import { processCompressPdf } from './engines/compressPdf';
+import {
+  processCompressPdf,
+  processJpgToPdf,
+  processPngToPdf,
+  processImagesToPdf,
+  processPdfToJpg,
+  processPdfToPng,
+  processMergePdf,
+  processSplitPdf,
+  processOrganizePdf,
+  processDeletePdfPages,
+  processExtractPdfPages,
+  processRotatePdf,
+  processCropPdf,
+  processTxtToPdf,
+  processMarkdownToPdf,
+  processHtmlToPdf,
+  processPdfToMarkdown,
+  processExtractPdfText,
+  processWordToPdf,
+  processExcelToPdf,
+  processPowerpointToPdf,
+  processPdfToWord,
+  processRtfConversion,
+  processOcrPdf,
+  processAddPageNumbers,
+  processWatermarkPdf,
+  processProtectPdf,
+  processUnlockPdf,
+  processEditPdfMetadata,
+  processFullPdfEditing,
+} from './engines';
 import { storageManager } from '../server/storage/storageManager';
 import { B2ProviderId } from '../server/config';
+
+function getMimeTypeForPath(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.pdf':
+      return 'application/pdf';
+    case '.zip':
+      return 'application/zip';
+    case '.docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    case '.txt':
+      return 'text/plain';
+    case '.md':
+      return 'text/markdown';
+    case '.rtf':
+      return 'application/rtf';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.png':
+      return 'image/png';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+export const ALL_SUPPORTED_SERVICES = [
+  'jpg-to-pdf',
+  'png-to-pdf',
+  'images-to-pdf',
+  'word-to-pdf',
+  'excel-to-pdf',
+  'powerpoint-to-pdf',
+  'html-to-pdf',
+  'txt-to-pdf',
+  'markdown-to-pdf',
+  'pdf-to-jpg',
+  'pdf-to-png',
+  'pdf-to-markdown',
+  'pdf-to-word',
+  'merge-pdf',
+  'split-pdf',
+  'organize-pdf',
+  'organize-pdf-pages',
+  'delete-pdf-pages',
+  'extract-pdf-pages',
+  'rotate-pdf',
+  'crop-pdf',
+  'compress-pdf',
+  'ocr-pdf',
+  'add-page-numbers',
+  'watermark-pdf',
+  'full-pdf-editing',
+  'editor',
+  'password-protect-pdf',
+  'protect-pdf',
+  'unlock-pdf',
+  'edit-pdf-metadata',
+  'extract-pdf-text',
+  'rtf-conversion',
+];
 
 export class ProcessorRouter {
   public static async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -30,7 +124,8 @@ export class ProcessorRouter {
           service: 'pra-pdf-processor',
           status: 'healthy',
           version: '1.0.0',
-          supportedServices: ['compress-pdf'],
+          supportedServices: ALL_SUPPORTED_SERVICES,
+          serviceCount: ALL_SUPPORTED_SERVICES.length,
           maxFileSizeMb: PROCESSOR_CONFIG.maxFileSizeMb,
           timestamp: new Date().toISOString(),
         });
@@ -39,16 +134,14 @@ export class ProcessorRouter {
 
       // 2. Services registry
       if (method === 'GET' && pathname === '/internal/v1/services') {
+        const servicesList = ALL_SUPPORTED_SERVICES.map((id) => ({
+          serviceId: id,
+          status: 'AVAILABLE',
+        }));
         this.sendJson(res, 200, {
           ok: true,
-          services: [
-            {
-              serviceId: 'compress-pdf',
-              displayName: 'Compress PDF',
-              category: 'optimize',
-              status: 'AVAILABLE',
-            },
-          ],
+          total: servicesList.length,
+          services: servicesList,
         });
         return;
       }
@@ -122,7 +215,6 @@ export class ProcessorRouter {
     for await (const chunk of req) {
       bodyData += chunk;
       if (bodyData.length > 5 * 1024 * 1024) {
-        // Metadata payload shouldn't exceed 5MB
         this.sendJson(res, 413, {
           ok: false,
           errorCode: 'FILE_TOO_LARGE',
@@ -144,10 +236,9 @@ export class ProcessorRouter {
       return;
     }
 
-    const { jobId, serviceId, inputStorageKey, outputStorageKey, storageProvider } = payload;
+    const { jobId, serviceId, inputStorageKey, outputStorageKey, storageProvider, options } = payload;
     const providerId: B2ProviderId = storageProvider || 'B2_2';
 
-    // Validate parameters
     if (!jobId || !serviceId || !inputStorageKey || !outputStorageKey) {
       this.sendJson(res, 400, {
         ok: false,
@@ -157,12 +248,11 @@ export class ProcessorRouter {
       return;
     }
 
-    // Phase 1 constraint: only compress-pdf is supported
-    if (serviceId !== 'compress-pdf') {
+    if (!ALL_SUPPORTED_SERVICES.includes(serviceId)) {
       this.sendJson(res, 400, {
         ok: false,
         errorCode: 'SERVICE_UNSUPPORTED',
-        message: `Service '${serviceId}' is not yet implemented on the processing engine. Currently supported: ['compress-pdf'].`,
+        message: `Service '${serviceId}' is not yet implemented on the processing engine.`,
       });
       return;
     }
@@ -170,8 +260,10 @@ export class ProcessorRouter {
     let workspace: { dir: string; inputPath: string; outputPath: string } | null = null;
 
     try {
-      // 1. Prepare isolated workspace
-      workspace = workspaceManager.prepareWorkspace(jobId);
+      // 1. Prepare isolated workspace with appropriate file extensions
+      const inputExt = path.extname(inputStorageKey) || '.pdf';
+      const outputExt = path.extname(outputStorageKey) || '.pdf';
+      workspace = workspaceManager.prepareWorkspace(jobId, inputExt, outputExt);
 
       // 2. Download original file from Backblaze B2
       procLogger.info('PROCESSOR_B2_DOWNLOAD_STARTED', { jobId, inputStorageKey, providerId });
@@ -190,8 +282,8 @@ export class ProcessorRouter {
         return;
       }
 
-      // 3. Validate input PDF
-      const inputValidation = PdfValidator.validateInput(inputBuffer);
+      // 3. Validate input format & size
+      const inputValidation = PdfValidator.validateInput(inputBuffer, serviceId);
       if (!inputValidation.valid) {
         const statusCode = inputValidation.errorCode === 'FILE_TOO_LARGE' ? 413 : 400;
         this.sendJson(res, statusCode, {
@@ -202,18 +294,111 @@ export class ProcessorRouter {
         return;
       }
 
-      // Write to workspace
+      // Write input to workspace
       fs.writeFileSync(workspace.inputPath, inputBuffer);
 
-      // 4. Execute Real PDF Compression Engine
-      const compressResult = await processCompressPdf(
-        workspace.inputPath,
-        workspace.outputPath,
-        jobId
-      );
+      // 4. Execute Real Dedicated Engine
+      let engineResult: any;
+      switch (serviceId) {
+        case 'compress-pdf':
+          engineResult = await processCompressPdf(workspace.inputPath, workspace.outputPath, jobId);
+          break;
+        case 'jpg-to-pdf':
+          engineResult = await processJpgToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'png-to-pdf':
+          engineResult = await processPngToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'images-to-pdf':
+          engineResult = await processImagesToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'pdf-to-jpg':
+          engineResult = await processPdfToJpg(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'pdf-to-png':
+          engineResult = await processPdfToPng(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'merge-pdf':
+          engineResult = await processMergePdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'split-pdf':
+          engineResult = await processSplitPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'organize-pdf':
+        case 'organize-pdf-pages':
+          engineResult = await processOrganizePdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'delete-pdf-pages':
+          engineResult = await processDeletePdfPages(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'extract-pdf-pages':
+          engineResult = await processExtractPdfPages(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'rotate-pdf':
+          engineResult = await processRotatePdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'crop-pdf':
+          engineResult = await processCropPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'txt-to-pdf':
+          engineResult = await processTxtToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'markdown-to-pdf':
+          engineResult = await processMarkdownToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'html-to-pdf':
+          engineResult = await processHtmlToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'pdf-to-markdown':
+          engineResult = await processPdfToMarkdown(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'extract-pdf-text':
+          engineResult = await processExtractPdfText(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'word-to-pdf':
+          engineResult = await processWordToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'excel-to-pdf':
+          engineResult = await processExcelToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'powerpoint-to-pdf':
+          engineResult = await processPowerpointToPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'pdf-to-word':
+          engineResult = await processPdfToWord(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'rtf-conversion':
+          engineResult = await processRtfConversion(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'ocr-pdf':
+          engineResult = await processOcrPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'add-page-numbers':
+          engineResult = await processAddPageNumbers(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'watermark-pdf':
+          engineResult = await processWatermarkPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'password-protect-pdf':
+        case 'protect-pdf':
+          engineResult = await processProtectPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'unlock-pdf':
+          engineResult = await processUnlockPdf(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'edit-pdf-metadata':
+          engineResult = await processEditPdfMetadata(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        case 'full-pdf-editing':
+        case 'editor':
+          engineResult = await processFullPdfEditing(workspace.inputPath, workspace.outputPath, jobId, options);
+          break;
+        default:
+          throw new Error(`Unhandled service: ${serviceId}`);
+      }
 
-      // 5. Validate Output PDF
-      const outputValidation = await PdfValidator.validateOutputFile(workspace.outputPath);
+      // 5. Validate Output File
+      const outputValidation = await PdfValidator.validateOutputFile(workspace.outputPath, serviceId);
       if (!outputValidation.valid) {
         procLogger.error('PROCESSOR_OUTPUT_INVALID', { jobId, error: outputValidation.errorMessage });
         this.sendJson(res, 500, {
@@ -226,22 +411,24 @@ export class ProcessorRouter {
 
       // 6. Upload processed output to B2
       const outputBuffer = fs.readFileSync(workspace.outputPath);
+      const outputMimeType = getMimeTypeForPath(workspace.outputPath);
+
       procLogger.info('PROCESSOR_B2_UPLOAD_STARTED', {
         jobId,
         outputStorageKey,
         sizeBytes: outputBuffer.length,
+        mimeType: outputMimeType,
       });
 
-      await b2Client.upload(outputStorageKey, outputBuffer, 'application/pdf');
+      await b2Client.upload(outputStorageKey, outputBuffer, outputMimeType);
 
       const durationMs = Date.now() - startTime;
       procLogger.info('PROCESSOR_JOB_COMPLETED', {
         jobId,
         serviceId,
         durationMs,
-        inputSize: compressResult.inputSizeBytes,
-        outputSize: compressResult.outputSizeBytes,
-        reductionPercent: compressResult.reductionPercentage,
+        inputSize: engineResult.inputSizeBytes,
+        outputSize: engineResult.outputSizeBytes,
       });
 
       // 7. Success Response
@@ -249,14 +436,16 @@ export class ProcessorRouter {
         ok: true,
         jobId,
         status: 'COMPLETED',
-        serviceId: 'compress-pdf',
+        serviceId,
         output: {
           storageProvider: providerId,
           storageKey: outputStorageKey,
-          sizeBytes: compressResult.outputSizeBytes,
-          sha256: compressResult.sha256,
-          reductionBytes: compressResult.reductionBytes,
-          reductionPercentage: compressResult.reductionPercentage,
+          sizeBytes: engineResult.outputSizeBytes,
+          sha256: engineResult.sha256,
+          pageCount: engineResult.pageCount,
+          imageCount: engineResult.imageCount,
+          reductionBytes: engineResult.reductionBytes,
+          reductionPercentage: engineResult.reductionPercentage,
         },
         processingTimeMs: durationMs,
       });
@@ -264,8 +453,8 @@ export class ProcessorRouter {
       procLogger.error('PROCESSOR_EXECUTION_FAILED', { jobId, error: err?.message });
       this.sendJson(res, 500, {
         ok: false,
-        errorCode: 'PDF_PROCESSING_FAILED',
-        message: err?.message || 'PDF processing engine failure.',
+        errorCode: 'PROCESSING_FAILED',
+        message: err?.message || 'Processing engine execution failure.',
       });
     } finally {
       // 8. Guaranteed temporary workspace cleanup

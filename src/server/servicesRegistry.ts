@@ -47,7 +47,7 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     serviceNumber: 3,
     displayName: 'Images to PDF',
     category: 'convert-to-pdf',
-    acceptedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.bmp'],
+    acceptedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.zip'],
     outputExtension: '.pdf',
     status: 'AVAILABLE',
     multiple: true,
@@ -59,7 +59,7 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     category: 'convert-to-pdf',
     acceptedExtensions: ['.docx', '.doc'],
     outputExtension: '.pdf',
-    status: 'PROCESSOR_REQUIRED',
+    status: 'AVAILABLE',
   },
   {
     serviceId: 'excel-to-pdf',
@@ -68,7 +68,7 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     category: 'convert-to-pdf',
     acceptedExtensions: ['.xlsx', '.xls', '.csv'],
     outputExtension: '.pdf',
-    status: 'PROCESSOR_REQUIRED',
+    status: 'AVAILABLE',
   },
   {
     serviceId: 'powerpoint-to-pdf',
@@ -77,7 +77,7 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     category: 'convert-to-pdf',
     acceptedExtensions: ['.pptx', '.ppt'],
     outputExtension: '.pdf',
-    status: 'PROCESSOR_REQUIRED',
+    status: 'AVAILABLE',
   },
   {
     serviceId: 'html-to-pdf',
@@ -142,7 +142,7 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     category: 'convert-from-pdf',
     acceptedExtensions: ['.pdf'],
     outputExtension: '.docx',
-    status: 'PROCESSOR_REQUIRED',
+    status: 'AVAILABLE',
   },
 
   // 14–20: PDF Organization
@@ -228,7 +228,7 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     category: 'optimize',
     acceptedExtensions: ['.pdf'],
     outputExtension: '.pdf',
-    status: 'PROCESSOR_REQUIRED',
+    status: 'AVAILABLE',
   },
   {
     serviceId: 'add-page-numbers',
@@ -304,18 +304,26 @@ export const LOCKED_30_SERVICES: BackendServiceDef[] = [
     category: 'other-conversions',
     acceptedExtensions: ['.rtf', '.pdf'],
     outputExtension: '.pdf',
-    status: 'PROCESSOR_REQUIRED',
+    status: 'AVAILABLE',
   },
 ];
+
+const SERVICE_ALIASES: Record<string, string> = {
+  'organize-pdf': 'organize-pdf-pages',
+  'protect-pdf': 'password-protect-pdf',
+  'editor': 'full-pdf-editing',
+};
 
 export function getAllServices(): BackendServiceDef[] {
   return LOCKED_30_SERVICES;
 }
 
 export function getServiceById(serviceId: string): BackendServiceDef | undefined {
-  return LOCKED_30_SERVICES.find((s) => s.serviceId === serviceId);
+  const canonicalId = SERVICE_ALIASES[serviceId] || serviceId;
+  return LOCKED_30_SERVICES.find((s) => s.serviceId === canonicalId);
 }
 
 export function isValidServiceId(serviceId: string): boolean {
-  return LOCKED_30_SERVICES.some((s) => s.serviceId === serviceId);
+  const canonicalId = SERVICE_ALIASES[serviceId] || serviceId;
+  return LOCKED_30_SERVICES.some((s) => s.serviceId === canonicalId);
 }

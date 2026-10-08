@@ -38,7 +38,11 @@ export class WorkspaceManager {
   /**
    * Prepares isolated workspace for a job
    */
-  public prepareWorkspace(jobId: string): {
+  public prepareWorkspace(
+    jobId: string,
+    inputExt: string = '.pdf',
+    outputExt: string = '.pdf'
+  ): {
     dir: string;
     inputPath: string;
     outputPath: string;
@@ -51,10 +55,13 @@ export class WorkspaceManager {
     }
     fs.mkdirSync(dir, { recursive: true });
 
+    const safeInputExt = inputExt.startsWith('.') ? inputExt : `.${inputExt}`;
+    const safeOutputExt = outputExt.startsWith('.') ? outputExt : `.${outputExt}`;
+
     return {
       dir,
-      inputPath: path.join(dir, 'input.pdf'),
-      outputPath: path.join(dir, 'output.pdf'),
+      inputPath: path.join(dir, `input${safeInputExt}`),
+      outputPath: path.join(dir, `output${safeOutputExt}`),
     };
   }
 

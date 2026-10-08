@@ -320,7 +320,7 @@ async function runRealInfrastructureE2ETest(): Promise<InfrastructureE2EReport> 
   // Download Output from B2 and Verify Integrity
   console.log('\n[Pipeline.5] Downloading and validating output PDF from B2...');
   let outputDownload = false;
-  let downloadedOutputBuf = Buffer.alloc(0);
+  let downloadedOutputBuf: Buffer = Buffer.alloc(0);
   let downloadedSha256 = '';
 
   if (outputExistsInB2 && job.outputStorageKey) {
