@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite';
+import { cloudflare } from '@cloudflare/vite-plugin';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    ...(mode !== 'test' && !process.env.VITEST ? [cloudflare()] : []),
+  ],
   root: '.',
   server: {
     port: 5173,
@@ -19,4 +23,4 @@ export default defineConfig({
     target: 'es2022',
     outDir: 'dist',
   },
-});
+}));
