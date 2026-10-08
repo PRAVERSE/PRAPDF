@@ -25,6 +25,10 @@ export interface ToolDefinition {
   multiple?: boolean;
   aliases?: string[];
   popular?: boolean;
+  accentColor?: string;
+  accentBg?: string;
+  selectBtnLabel?: string;
+  actionBtnLabel?: string;
 }
 
 export const CATEGORY_LABELS: Record<ToolCategory | 'all', string> = {
@@ -338,4 +342,55 @@ export function findToolById(id: string): ToolDefinition | undefined {
   return TOOLS_REGISTRY.find(
     (t) => t.id === id || (t.aliases && t.aliases.includes(id))
   );
+}
+
+export interface ToolVisualMeta {
+  accentColor: string;
+  accentBg: string;
+  selectBtnLabel: string;
+  actionBtnLabel: string;
+  badge?: string;
+}
+
+const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
+  'merge-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PDF files', actionBtnLabel: 'Merge PDF', badge: 'POPULAR' },
+  'split-pdf': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Split PDF', badge: 'POPULAR' },
+  'compress-pdf': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Compress PDF', badge: 'RECOMMENDED' },
+  'pdf-to-word': { accentColor: '#2563EB', accentBg: 'rgba(37, 99, 235, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to WORD', badge: 'POPULAR' },
+  'pdf-to-jpg': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to JPG', badge: 'POPULAR' },
+  'pdf-to-png': { accentColor: '#D97706', accentBg: 'rgba(217, 119, 6, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PNG' },
+  'pdf-to-markdown': { accentColor: '#0891B2', accentBg: 'rgba(8, 145, 178, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Markdown' },
+  'word-to-pdf': { accentColor: '#1D4ED8', accentBg: 'rgba(29, 78, 216, 0.12)', selectBtnLabel: 'Select WORD files', actionBtnLabel: 'Convert to PDF' },
+  'excel-to-pdf': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select EXCEL files', actionBtnLabel: 'Convert to PDF' },
+  'powerpoint-to-pdf': { accentColor: '#EA580C', accentBg: 'rgba(234, 88, 12, 0.12)', selectBtnLabel: 'Select POWERPOINT files', actionBtnLabel: 'Convert to PDF' },
+  'jpg-to-pdf': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select JPG images', actionBtnLabel: 'Convert to PDF', badge: 'POPULAR' },
+  'png-to-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PNG images', actionBtnLabel: 'Convert to PDF' },
+  'images-to-pdf': { accentColor: '#FB7185', accentBg: 'rgba(251, 113, 133, 0.12)', selectBtnLabel: 'Select Images', actionBtnLabel: 'Convert to PDF' },
+  'html-to-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select HTML file', actionBtnLabel: 'Convert to PDF' },
+  'txt-to-pdf': { accentColor: '#64748B', accentBg: 'rgba(100, 116, 139, 0.12)', selectBtnLabel: 'Select TXT file', actionBtnLabel: 'Convert to PDF' },
+  'markdown-to-pdf': { accentColor: '#06B6D4', accentBg: 'rgba(6, 182, 212, 0.12)', selectBtnLabel: 'Select MARKDOWN file', actionBtnLabel: 'Convert to PDF' },
+  'organize-pdf-pages': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Organize Pages' },
+  'organize-pdf': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Organize Pages' },
+  'delete-pdf-pages': { accentColor: '#DC2626', accentBg: 'rgba(220, 38, 38, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Delete Selected Pages' },
+  'extract-pdf-pages': { accentColor: '#9333EA', accentBg: 'rgba(147, 51, 234, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Pages' },
+  'rotate-pdf': { accentColor: '#4F46E5', accentBg: 'rgba(79, 70, 229, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Rotate PDF' },
+  'crop-pdf': { accentColor: '#2563EB', accentBg: 'rgba(37, 99, 235, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Crop PDF' },
+  'ocr-pdf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Run OCR' },
+  'add-page-numbers': { accentColor: '#3B82F6', accentBg: 'rgba(59, 130, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Add Page Numbers' },
+  'watermark-pdf': { accentColor: '#A855F7', accentBg: 'rgba(168, 85, 247, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Apply Watermark' },
+  'full-pdf-editing': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Open PDF Studio', badge: 'STUDIO' },
+  'password-protect-pdf': { accentColor: '#7C3AED', accentBg: 'rgba(124, 58, 237, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Protect PDF' },
+  'unlock-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Unlock PDF' },
+  'edit-pdf-metadata': { accentColor: '#475569', accentBg: 'rgba(71, 85, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Save Metadata' },
+  'extract-pdf-text': { accentColor: '#0D9488', accentBg: 'rgba(13, 148, 136, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Text' },
+  'rtf-conversion': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select Document', actionBtnLabel: 'Convert Document' },
+};
+
+export function getToolVisualMeta(toolId: string): ToolVisualMeta {
+  return TOOL_VISUALS[toolId] || {
+    accentColor: '#E11D48',
+    accentBg: 'rgba(225, 29, 72, 0.12)',
+    selectBtnLabel: 'Select files',
+    actionBtnLabel: 'Convert to PDF',
+  };
 }

@@ -14,6 +14,8 @@ export interface DropzoneConfig {
   onFilesChanged: (files: File[]) => void;
   onError: (errorMessage: string) => void;
   onFileTooLarge?: (fileName: string, fileSizeStr: string) => void;
+  accentColor?: string;
+  selectBtnLabel?: string;
 }
 
 export class Dropzone {
@@ -47,8 +49,11 @@ export class Dropzone {
 
   private render(): void {
     const extList = this.config.allowedExtensions.join(', ');
+    const accent = this.config.accentColor || '#E11D48';
+    const label = this.config.selectBtnLabel || `Select ${this.config.multiple ? 'files' : 'file'}`;
+
     this.container.innerHTML = `
-      <div class="dropzone-box" id="dz-drop-area" tabindex="0" role="button" aria-label="Upload files drop area">
+      <div class="ilove-hero-uploader" id="dz-drop-area" tabindex="0" role="button" aria-label="Upload files drop area">
         <input 
           type="file" 
           id="dz-file-input" 
@@ -56,25 +61,26 @@ export class Dropzone {
           accept="${this.config.allowedExtensions.join(',')}" 
           ${this.config.multiple ? 'multiple' : ''} 
         />
-        <div class="dropzone-icon">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
+        
+        <div class="uploader-btn-wrapper">
+          <button type="button" class="btn-ilove-select" id="dz-choose-files-btn" style="background-color: ${accent};">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>${label}</span>
+          </button>
         </div>
-        <div class="dropzone-title">Drop your ${this.config.multiple ? 'files' : 'file'} here</div>
-        <div class="dropzone-hint">
-          or <button type="button" class="btn btn-secondary btn-sm" id="dz-choose-files-btn" style="margin: 0 4px; pointer-events: none;">Choose ${this.config.multiple ? 'Files' : 'File'}</button>
-        </div>
-        <div class="dropzone-supported-formats">Supported formats: <strong>${extList}</strong></div>
-        <div class="limit-badge-50mb">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          Maximum file size: 50 MB per file
+
+        <div class="ilove-drop-caption">or drop ${this.config.multiple ? 'files' : 'file'} here</div>
+
+        <div class="ilove-drop-meta">
+          <span class="meta-tag">Formats: <strong>${extList}</strong></span>
+          <span class="meta-sep">•</span>
+          <span class="meta-tag">Up to 50 MB</span>
+          <span class="meta-sep">•</span>
+          <span class="meta-tag">Private & Secure</span>
         </div>
       </div>
 

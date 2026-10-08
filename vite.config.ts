@@ -3,7 +3,7 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 
 export default defineConfig(({ mode }) => ({
   plugins: [
-    ...(mode !== 'test' && !process.env.VITEST ? [cloudflare()] : []),
+    ...(mode !== 'test' && !process.env.VITEST && !process.env.NO_CF ? [cloudflare()] : []),
   ],
   root: '.',
   server: {

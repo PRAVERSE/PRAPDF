@@ -79,6 +79,102 @@ export async function renderPageToCanvas(
 }
 
 /**
+ * Renders a PDF page to a compact data URL for instant UI preview
+ */
+export async function renderPageThumbnail(
+  pdfBytes: Uint8Array | ArrayBuffer,
+  pageIndex: number = 0,
+  targetWidth: number = 180
+): Promise<string> {
+  const loadingTask = pdfjsLib.getDocument({
+    data: pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes),
+  });
+  const pdfDoc = await loadingTask.promise;
+  const page = await pdfDoc.getPage(pageIndex + 1);
+
+  const naturalViewport = page.getViewport({ scale: 1 });
+  const scale = targetWidth / naturalViewport.width;
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  await page.render({
+    canvasContext: ctx,
+    viewport,
+  }).promise;
+
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
+/**
+ * Renders all pages of a document into visual thumbnails for page-level tools
+ */
+export async function renderDocumentPages(
+  pdfBytes: Uint8Array | ArrayBuffer,
+  maxPages: number = 50,
+  targetWidth: number = 160
+): Promise<Array<{ pageNumber: number; dataUrl: string; width: number; height: number }>> {
+  const loadingTask = pdfjsLib.getDocument({
+    data: pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes),
+  });
+  const pdfDoc = await loadingTask.promise;
+  const total = Math.min(pdfDoc.numPages, maxPages);
+  const results: Array<{ pageNumber: number; dataUrl: string; width: number; height: number }> = [];
+
+  for (let i = 1; i <= total; i++) {
+    try {
+      const page = await pdfDoc.getPage(i);
+      const naturalViewport = page.getViewport({ scale: 1 });
+      const scale = targetWidth / naturalViewport.width;
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        await page.render({
+          canvasContext: ctx,
+          viewport,
+        }).promise;
+        results.push({
+          pageNumber: i,
+          dataUrl: canvas.toDataURL('image/jpeg', 0.8),
+          width: canvas.width,
+          height: canvas.height,
+        });
+      }
+    } catch (e) {
+      console.warn(`Failed to render page thumbnail ${i}:`, e);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Gets page count quickly
+ */
+export async function getPageCountFast(pdfBytes: Uint8Array | ArrayBuffer): Promise<number> {
+  try {
+    const doc = await loadPDF(pdfBytes);
+    return doc.getPageCount();
+  } catch {
+    const loadingTask = pdfjsLib.getDocument({
+      data: pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes),
+    });
+    const pdfDoc = await loadingTask.promise;
+    return pdfDoc.numPages;
+  }
+}
+
+/**
  * Extracts plain text from all pages of a PDF
  */
 export async function extractTextFromPDF(
@@ -109,3 +205,4 @@ export async function extractTextFromPDF(
 }
 
 export { PDFDocument, rgb, degrees, StandardFonts };
+

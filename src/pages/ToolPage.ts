@@ -1,15 +1,27 @@
 /**
- * PRA PDF — Universal Tool Page (Sections 9, 10, 12, 26)
- * Dedicated UI workspace for each of the 30 tools with tailored options,
- * dual-mode inputs (HTML/MD/TXT), 7 visual states, and strict 50 MB validation.
+ * PRA PDF — Universal Tool Page (All 30 Services)
+ * Fully redesigned based on the world-class UX patterns of iLovePDF:
+ * 1. Centered Hero & Iconic File Selector with tool-specific vibrant branding
+ * 2. Interactive Dual-Pane Workspace (Center Stage Canvas + Sticky Right Sidebar)
+ * 3. Real Page Canvas Thumbnails via pdfjs-dist for page-level tools (Split, Rotate, Delete, Extract, Organize)
+ * 4. Multi-File Grid with drag-and-drop reordering & quick actions (Merge, Images)
+ * 5. Interactive 3x3 Position Grid & Live Canvas Preview for Watermark and Page Numbers
+ * 6. Visual Compression Tier Cards with Recommended badge for Compress PDF
+ * 7. Live password strength indicator for Password-Protect PDF
+ * 8. Celebratory Result Screen with file reduction stats and next-step actions
  */
 
-import { TOOLS_REGISTRY, ToolDefinition, findToolById } from '../services/toolsRegistry';
+import { TOOLS_REGISTRY, ToolDefinition, findToolById, getToolVisualMeta } from '../services/toolsRegistry';
 import { Dropzone } from '../components/Dropzone';
 import { ProgressBar } from '../components/ProgressBar';
 import { ResultCard } from '../components/ResultCard';
 import { ICONS, getToolIcon } from '../components/icons';
 import { formatBytes } from '../services/core/fileValidator';
+import {
+  renderDocumentPages,
+  renderPageThumbnail,
+  getPageCountFast,
+} from '../services/core/pdfEngine';
 
 // Service Engines
 import {
@@ -48,6 +60,23 @@ import { addPageNumbersToPdf, watermarkPdf } from '../services/annotatePdf';
 import { compressPdf, ocrPdf } from '../services/optimizeAndOcr';
 import { passwordProtectPdf, unlockPdf } from '../services/securityPdf';
 
+interface PageThumbnailItem {
+  pageNumber: number;
+  dataUrl: string;
+  width: number;
+  height: number;
+  rotation: number;
+  selected: boolean;
+  markedForDelete: boolean;
+}
+
+interface MultiFileItem {
+  file: File;
+  pageCount?: number;
+  thumbnailUrl?: string;
+  rotation: number;
+}
+
 export class ToolPage {
   private container: HTMLElement;
   private tool: ToolDefinition;
@@ -58,6 +87,20 @@ export class ToolPage {
 
   // Dual-mode state (File upload vs Direct Editor for HTML, Markdown, TXT)
   private inputMode: 'file' | 'direct' = 'file';
+
+  // Interactive page thumbnails state
+  private pageThumbnails: PageThumbnailItem[] = [];
+  private multiFileItems: MultiFileItem[] = [];
+  private isRenderingThumbnails: boolean = false;
+
+  // Watermark live preview state
+  private liveWatermarkText: string = 'CONFIDENTIAL';
+  private liveWatermarkOpacity: number = 0.3;
+  private liveWatermarkAngle: number = 45;
+  private liveWatermarkPosition: string = 'center';
+
+  // Page Numbers live preview position
+  private livePageNumPosition: string = 'bottom-center';
 
   constructor(container: HTMLElement, toolId: string) {
     this.container = container;
@@ -70,13 +113,14 @@ export class ToolPage {
 
   public render(): void {
     const isDualInput = ['html-to-pdf', 'markdown-to-pdf', 'txt-to-pdf'].includes(this.tool.id);
+    const visual = getToolVisualMeta(this.tool.id);
 
     this.container.innerHTML = `
-      <div class="tool-runner-container">
-        <!-- Back Navigation Breadcrumb -->
+      <div class="tool-runner-container" style="--tool-accent: ${visual.accentColor}; --tool-accent-bg: ${visual.accentBg};">
+        <!-- Top Navigation Breadcrumb -->
         <div class="tool-nav-breadcrumb">
           <a href="#/tools" class="tool-back-link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
@@ -86,18 +130,20 @@ export class ToolPage {
           <span class="tool-breadcrumb-current">${this.tool.title}</span>
         </div>
 
-        <!-- Tool Header -->
-        <div class="tool-header-block">
+        <!-- Tool Header Block (iLovePDF signature header) -->
+        <div class="tool-header-block" id="tp-hero-header">
           <div class="tool-header-top-meta">
-            <span class="tool-service-tag">UTILITY #${this.tool.serviceNumber}</span>
+            <span class="tool-service-tag" style="background-color: ${visual.accentBg}; color: ${visual.accentColor}; border: 1px solid ${visual.accentColor}30;">
+              SERVICE #${this.tool.serviceNumber}
+            </span>
             <span class="tool-category-tag">${this.tool.categoryLabel}</span>
           </div>
           <h1 class="tool-title">${this.tool.title}</h1>
           <p class="tool-subtitle">${this.tool.description}</p>
         </div>
 
-        <!-- Tool Runner Card (Hosts 7 States) -->
-        <div class="card-container tool-workspace-card">
+        <!-- Selection Hero State (Initial) -->
+        <div class="tool-selection-stage" id="tp-selection-stage">
           ${
             isDualInput
               ? `
@@ -106,19 +152,19 @@ export class ToolPage {
                 Upload File (${this.tool.acceptedExtensions.join(', ')})
               </button>
               <button type="button" class="dual-tab-btn ${this.inputMode === 'direct' ? 'active' : ''}" id="tab-mode-direct">
-                ${this.tool.id === 'html-to-pdf' ? 'HTML Code Editor' : this.tool.id === 'markdown-to-pdf' ? 'Markdown Editor & Preview' : 'Text Editor'}
+                ${this.tool.id === 'html-to-pdf' ? 'HTML Code Editor' : this.tool.id === 'markdown-to-pdf' ? 'Markdown Editor & Live Preview' : 'Text Editor'}
               </button>
             </div>
           `
               : ''
           }
 
-          <!-- STATE 1: Dropzone Upload Area -->
+          <!-- Dropzone Container -->
           <div id="tp-dropzone-wrapper" style="${this.inputMode === 'direct' ? 'display: none;' : ''}">
             <div id="tp-dropzone-container"></div>
           </div>
 
-          <!-- Direct Input Workspace for HTML / Markdown / TXT -->
+          <!-- Direct Editor Container (HTML, Markdown, TXT) -->
           ${
             isDualInput
               ? `
@@ -128,57 +174,85 @@ export class ToolPage {
           `
               : ''
           }
-
-          <!-- STATE 2: Tool Options Panel -->
-          <div id="tp-options-container" class="tool-options-panel" style="display: none;">
-            <div class="options-header">
-              <h3 class="options-title">Configuration Options</h3>
-            </div>
-            ${this.renderToolOptions()}
-          </div>
-
-          <!-- STATE 6: Error State Banner -->
-          <div id="tp-error-banner" class="error-banner" style="display: none;">
-            <div class="error-banner-icon">${ICONS['alert-triangle']}</div>
-            <div class="error-banner-text">
-              <h4 class="error-banner-title">Something went wrong.</h4>
-              <p id="tp-error-message" class="error-banner-desc">Please check your document and try again.</p>
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="tp-error-retry-btn">
-              Try Again
-            </button>
-          </div>
-
-          <!-- STATE 7: File Too Large Banner (handled by dropzone or tool) -->
-          <div id="tp-too-large-banner" class="file-too-large-card" style="display: none;">
-            <div class="too-large-icon">${ICONS['alert-triangle']}</div>
-            <div class="too-large-content">
-              <h4 class="too-large-title">File is too large.</h4>
-              <p class="too-large-subtitle" id="tp-too-large-text">Maximum file size is 50 MB per file.</p>
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="tp-too-large-retry-btn">
-              Choose Another File
-            </button>
-          </div>
-
-          <!-- STATE 3: Ready / Primary Action Button -->
-          <div class="tool-action-bar" id="tp-action-bar" style="display: none;">
-            <button type="button" class="btn btn-primary btn-lg" id="tp-process-btn">
-              <span class="btn-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-              </span>
-              <span id="tp-process-label">${this.getPrimaryActionLabel()}</span>
-            </button>
-          </div>
-
-          <!-- STATE 4: Processing State -->
-          <div id="tp-progress-container"></div>
-
-          <!-- STATE 5: Success State -->
-          <div id="tp-result-container"></div>
         </div>
+
+        <!-- Active Dual-Pane Workspace (Shown after file selection) -->
+        <div class="ilove-workspace-layout" id="tp-workspace-container" style="display: none;">
+          <!-- Center / Main Stage: Visual File & Page Canvas -->
+          <div class="workspace-main-stage" id="tp-main-stage">
+            <div class="main-stage-header">
+              <div class="stage-header-left">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-back-to-picker" title="Change or re-select files">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                  <span>Change File</span>
+                </button>
+                <span class="stage-header-title" id="stage-summary-label">Selected Document</span>
+              </div>
+              <div class="stage-header-actions" id="stage-toolbar-actions"></div>
+            </div>
+
+            <!-- Dynamic Interactive Visual Canvas -->
+            <div class="stage-interactive-canvas" id="tp-interactive-canvas">
+              <div class="canvas-loading-state" id="canvas-loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating high-resolution page previews...</p>
+              </div>
+              <div id="canvas-dynamic-content"></div>
+            </div>
+          </div>
+
+          <!-- Sticky Right Sidebar: Dedicated Options & Big Action Button -->
+          <aside class="workspace-sidebar" id="tp-sidebar">
+            <div class="sidebar-header">
+              <div class="sidebar-tool-icon" style="background-color: ${visual.accentBg}; color: ${visual.accentColor};">
+                ${getToolIcon(this.tool.id)}
+              </div>
+              <div class="sidebar-tool-info">
+                <h3 class="sidebar-tool-title">${this.tool.title}</h3>
+                <span class="sidebar-tool-meta" id="sidebar-meta-text">Ready to configure</span>
+              </div>
+            </div>
+
+            <!-- Purpose-Built Tool Options Panel -->
+            <div class="sidebar-options-body">
+              ${this.renderToolOptions()}
+            </div>
+
+            <!-- Sticky Sidebar Action Footer -->
+            <div class="sidebar-action-footer">
+              <button type="button" class="btn-ilove-action" id="tp-process-btn" style="background-color: ${visual.accentColor};">
+                <span class="btn-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </span>
+                <span id="tp-process-label">${visual.actionBtnLabel || this.getPrimaryActionLabel()}</span>
+                <span class="btn-arrow-cue">→</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Processing State (Progress Bar) -->
+        <div id="tp-progress-container" class="processing-overlay" style="display: none;"></div>
+
+        <!-- Error Banner -->
+        <div id="tp-error-banner" class="error-banner" style="display: none;">
+          <div class="error-banner-icon">${ICONS['alert-triangle']}</div>
+          <div class="error-banner-text">
+            <h4 class="error-banner-title">Something went wrong</h4>
+            <p id="tp-error-message" class="error-banner-desc">Please check your document and try again.</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="tp-error-retry-btn">
+            Try Again
+          </button>
+        </div>
+
+        <!-- Success State (Celebration Card) -->
+        <div id="tp-result-container"></div>
       </div>
     `;
 
@@ -186,15 +260,800 @@ export class ToolPage {
     this.bindEvents();
   }
 
+  private initSubComponents(): void {
+    const errorBanner = this.container.querySelector('#tp-error-banner') as HTMLElement;
+    const visual = getToolVisualMeta(this.tool.id);
+
+    this.dropzone = new Dropzone({
+      containerId: 'tp-dropzone-container',
+      allowedExtensions: this.tool.acceptedExtensions,
+      multiple: !!this.tool.multiple,
+      accentColor: visual.accentColor,
+      selectBtnLabel: visual.selectBtnLabel,
+      onFilesChanged: async (files) => {
+        this.selectedFiles = files;
+        errorBanner.style.display = 'none';
+
+        if (files.length > 0) {
+          await this.transitionToWorkspace();
+        } else {
+          this.transitionToSelection();
+        }
+      },
+      onError: (msg) => {
+        const errorDesc = this.container.querySelector('#tp-error-message') as HTMLElement;
+        if (errorDesc) errorDesc.textContent = msg;
+        errorBanner.style.display = 'flex';
+      },
+    });
+
+    this.progressBar = new ProgressBar('tp-progress-container');
+    this.resultCard = new ResultCard('tp-result-container');
+  }
+
+  /**
+   * Smoothly switches view into the iLovePDF-style Dual-Pane Workspace
+   */
+  private async transitionToWorkspace(): Promise<void> {
+    const selectionStage = this.container.querySelector('#tp-selection-stage') as HTMLElement;
+    const workspaceContainer = this.container.querySelector('#tp-workspace-container') as HTMLElement;
+    const heroHeader = this.container.querySelector('#tp-hero-header') as HTMLElement;
+
+    if (selectionStage) selectionStage.style.display = 'none';
+    if (workspaceContainer) workspaceContainer.style.display = 'grid';
+    if (heroHeader) heroHeader.style.display = 'none';
+
+    this.updateSidebarMeta();
+    await this.renderMainStageVisualContent();
+  }
+
+  /**
+   * Switches view back to the initial Hero / Selection state
+   */
+  private transitionToSelection(): void {
+    const selectionStage = this.container.querySelector('#tp-selection-stage') as HTMLElement;
+    const workspaceContainer = this.container.querySelector('#tp-workspace-container') as HTMLElement;
+    const heroHeader = this.container.querySelector('#tp-hero-header') as HTMLElement;
+
+    if (selectionStage) selectionStage.style.display = 'block';
+    if (workspaceContainer) workspaceContainer.style.display = 'none';
+    if (heroHeader) heroHeader.style.display = 'block';
+
+    this.pageThumbnails = [];
+    this.multiFileItems = [];
+    this.selectedFiles = [];
+    this.dropzone.clearFiles();
+  }
+
+  private updateSidebarMeta(): void {
+    const metaText = this.container.querySelector('#sidebar-meta-text');
+    if (metaText) {
+      if (this.selectedFiles.length === 1) {
+        metaText.textContent = `${this.selectedFiles[0].name} (${formatBytes(this.selectedFiles[0].size)})`;
+      } else {
+        const totalBytes = this.selectedFiles.reduce((acc, f) => acc + f.size, 0);
+        metaText.textContent = `${this.selectedFiles.length} files selected (${formatBytes(totalBytes)})`;
+      }
+    }
+  }
+
+  /**
+   * Renders the center stage visual content based on the active tool
+   */
+  private async renderMainStageVisualContent(): Promise<void> {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    const loadingIndicator = this.container.querySelector('#canvas-loading-indicator') as HTMLElement;
+    const toolbarActions = this.container.querySelector('#stage-toolbar-actions') as HTMLElement;
+    const summaryLabel = this.container.querySelector('#stage-summary-label') as HTMLElement;
+
+    if (!canvasContent) return;
+
+    // 1. Multi-file tools: Merge PDF, Images to PDF
+    if (this.tool.id === 'merge-pdf' || this.tool.id === 'images-to-pdf') {
+      summaryLabel.textContent = `${this.selectedFiles.length} Document${this.selectedFiles.length > 1 ? 's' : ''} to ${this.tool.id === 'merge-pdf' ? 'Merge' : 'Convert'}`;
+      toolbarActions.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-add-more-files">
+          + Add Files
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-sort-files-az" title="Sort files alphabetically">
+          Sort A-Z
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-reverse-files" title="Reverse order">
+          Reverse
+        </button>
+      `;
+
+      this.bindMultiFileToolbar();
+      await this.renderMultiFileGrid();
+      return;
+    }
+
+    // 2. Page-level PDF tools: Split, Delete, Extract, Rotate, Organize
+    const isPageLevelTool = [
+      'split-pdf',
+      'rotate-pdf',
+      'delete-pdf-pages',
+      'extract-pdf-pages',
+      'organize-pdf-pages',
+      'organize-pdf',
+    ].includes(this.tool.id);
+
+    if (isPageLevelTool) {
+      const file = this.selectedFiles[0];
+      if (!file) return;
+
+      loadingIndicator.style.display = 'flex';
+      canvasContent.innerHTML = '';
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const pages = await renderDocumentPages(new Uint8Array(buffer), 50, 160);
+        this.pageThumbnails = pages.map((p) => ({
+          pageNumber: p.pageNumber,
+          dataUrl: p.dataUrl,
+          width: p.width,
+          height: p.height,
+          rotation: 0,
+          selected: true,
+          markedForDelete: false,
+        }));
+      } catch (err) {
+        console.warn('Could not generate canvas thumbnails:', err);
+      } finally {
+        loadingIndicator.style.display = 'none';
+      }
+
+      this.renderPageLevelGrid();
+      return;
+    }
+
+    // 3. Watermark PDF: Live Interactive Canvas
+    if (this.tool.id === 'watermark-pdf') {
+      summaryLabel.textContent = 'Live Watermark Preview';
+      toolbarActions.innerHTML = `
+        <span class="preview-badge-live">⚡ Live Dynamic Preview</span>
+      `;
+      await this.renderWatermarkLivePreview();
+      return;
+    }
+
+    // 4. Add Page Numbers: Live Interactive Canvas
+    if (this.tool.id === 'add-page-numbers') {
+      summaryLabel.textContent = 'Live Page Numbering Preview';
+      toolbarActions.innerHTML = `
+        <span class="preview-badge-live">⚡ Live Position Preview</span>
+      `;
+      await this.renderPageNumberLivePreview();
+      return;
+    }
+
+    // 5. Compress PDF: Visual Document Card & Savings Target
+    if (this.tool.id === 'compress-pdf') {
+      summaryLabel.textContent = 'Document Compression Profile';
+      toolbarActions.innerHTML = `
+        <span class="stage-tag-badge">Web & Email Ready</span>
+      `;
+      await this.renderCompressPreview();
+      return;
+    }
+
+    // 6. Generic Document Card Preview for single-file tools
+    await this.renderStandardDocumentCard();
+  }
+
+  /**
+   * Renders multi-file grid for Merge PDF and Images to PDF
+   */
+  private async renderMultiFileGrid(): Promise<void> {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    if (!canvasContent) return;
+
+    let cardsHtml = '';
+    for (let idx = 0; idx < this.selectedFiles.length; idx++) {
+      const file = this.selectedFiles[idx];
+      let thumbUrl = '';
+
+      if (file.type.startsWith('image/')) {
+        thumbUrl = URL.createObjectURL(file);
+      }
+
+      cardsHtml += `
+        <div class="ilove-file-card" data-index="${idx}" draggable="true">
+          <div class="file-card-order-badge">${idx + 1}</div>
+          <div class="file-card-preview-box">
+            ${
+              thumbUrl
+                ? `<img src="${thumbUrl}" alt="${file.name}" class="file-card-img" />`
+                : `
+              <div class="file-card-fallback-doc">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span class="file-fallback-ext">${file.name.split('.').pop()?.toUpperCase() || 'PDF'}</span>
+              </div>
+            `
+            }
+          </div>
+          <div class="file-card-info">
+            <div class="file-card-name" title="${file.name}">${file.name}</div>
+            <div class="file-card-size">${formatBytes(file.size)}</div>
+          </div>
+          <div class="file-card-actions">
+            <button type="button" class="file-action-icon move-left" data-index="${idx}" ${idx === 0 ? 'disabled' : ''} title="Move left">
+              ←
+            </button>
+            <button type="button" class="file-action-icon move-right" data-index="${idx}" ${idx === this.selectedFiles.length - 1 ? 'disabled' : ''} title="Move right">
+              →
+            </button>
+            <button type="button" class="file-action-icon delete" data-index="${idx}" title="Remove document">
+              ✕
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Add "+" card at end of grid
+    cardsHtml += `
+      <div class="ilove-add-file-tile" id="tile-add-more-files" role="button" tabindex="0">
+        <div class="add-tile-icon">+</div>
+        <div class="add-tile-label">Add more files</div>
+      </div>
+    `;
+
+    canvasContent.innerHTML = `<div class="ilove-file-cards-grid">${cardsHtml}</div>`;
+    this.bindMultiFileCardActions();
+  }
+
+  private bindMultiFileToolbar(): void {
+    const addMoreBtn = this.container.querySelector('#btn-add-more-files');
+    const sortBtn = this.container.querySelector('#btn-sort-files-az');
+    const reverseBtn = this.container.querySelector('#btn-reverse-files');
+
+    addMoreBtn?.addEventListener('click', () => this.dropzone.openPicker());
+
+    sortBtn?.addEventListener('click', () => {
+      this.selectedFiles.sort((a, b) => a.name.localeCompare(b.name));
+      this.renderMultiFileGrid();
+      this.updateSidebarMeta();
+    });
+
+    reverseBtn?.addEventListener('click', () => {
+      this.selectedFiles.reverse();
+      this.renderMultiFileGrid();
+      this.updateSidebarMeta();
+    });
+  }
+
+  private bindMultiFileCardActions(): void {
+    const tileAdd = this.container.querySelector('#tile-add-more-files');
+    tileAdd?.addEventListener('click', () => this.dropzone.openPicker());
+
+    this.container.querySelectorAll('.file-action-icon.delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).dataset.index || '0', 10);
+        this.selectedFiles.splice(idx, 1);
+        if (this.selectedFiles.length === 0) {
+          this.transitionToSelection();
+        } else {
+          this.renderMultiFileGrid();
+          this.updateSidebarMeta();
+        }
+      });
+    });
+
+    this.container.querySelectorAll('.file-action-icon.move-left').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).dataset.index || '0', 10);
+        if (idx > 0) {
+          const item = this.selectedFiles.splice(idx, 1)[0];
+          this.selectedFiles.splice(idx - 1, 0, item);
+          this.renderMultiFileGrid();
+        }
+      });
+    });
+
+    this.container.querySelectorAll('.file-action-icon.move-right').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).dataset.index || '0', 10);
+        if (idx < this.selectedFiles.length - 1) {
+          const item = this.selectedFiles.splice(idx, 1)[0];
+          this.selectedFiles.splice(idx + 1, 0, item);
+          this.renderMultiFileGrid();
+        }
+      });
+    });
+  }
+
+  /**
+   * Renders page thumbnail grid for page-level tools (Rotate, Delete, Extract, Split, Organize)
+   */
+  private renderPageLevelGrid(): void {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    const toolbarActions = this.container.querySelector('#stage-toolbar-actions') as HTMLElement;
+    const summaryLabel = this.container.querySelector('#stage-summary-label') as HTMLElement;
+
+    if (!canvasContent) return;
+
+    summaryLabel.textContent = `${this.pageThumbnails.length} Page${this.pageThumbnails.length > 1 ? 's' : ''} in Document`;
+
+    // Tool-specific toolbar
+    if (this.tool.id === 'rotate-pdf') {
+      toolbarActions.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-rotate-all-right">
+          Rotate All Right ↻ (90°)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-rotate-all-left">
+          Rotate All Left ↺ (90°)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-rotation">
+          Reset
+        </button>
+      `;
+    } else if (this.tool.id === 'delete-pdf-pages') {
+      toolbarActions.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-del-odd">Select Odd</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-del-even">Select Even</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-del-clear">Clear All</button>
+      `;
+    } else if (this.tool.id === 'extract-pdf-pages') {
+      toolbarActions.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-ext-all">Select All</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-ext-none">Deselect All</button>
+      `;
+    }
+
+    const cardsHtml = this.pageThumbnails
+      .map((p, idx) => {
+        const isDeleteTool = this.tool.id === 'delete-pdf-pages';
+        const isExtractTool = this.tool.id === 'extract-pdf-pages';
+        const isRotateTool = this.tool.id === 'rotate-pdf';
+
+        return `
+          <div 
+            class="ilove-page-tile ${p.markedForDelete ? 'marked-delete' : ''} ${p.selected && isExtractTool ? 'marked-extract' : ''}" 
+            data-index="${idx}"
+            data-page="${p.pageNumber}"
+          >
+            <div class="page-tile-header">
+              <span class="page-number-pill">Page ${p.pageNumber}</span>
+              ${
+                isDeleteTool && p.markedForDelete
+                  ? `<span class="page-state-badge delete">DELETED</span>`
+                  : ''
+              }
+              ${
+                isExtractTool && p.selected
+                  ? `<span class="page-state-badge extract">EXTRACT</span>`
+                  : ''
+              }
+            </div>
+
+            <div class="page-tile-canvas-wrap">
+              <img 
+                src="${p.dataUrl}" 
+                alt="Page ${p.pageNumber}" 
+                class="page-tile-img" 
+                style="transform: rotate(${p.rotation}deg);" 
+              />
+              ${
+                isDeleteTool && p.markedForDelete
+                  ? `<div class="page-delete-overlay">✕</div>`
+                  : ''
+              }
+            </div>
+
+            ${
+              isRotateTool
+                ? `
+              <div class="page-tile-rotate-controls">
+                <button type="button" class="btn-tile-rot rot-left" data-index="${idx}" title="Rotate 90° Left">↺</button>
+                <button type="button" class="btn-tile-rot rot-right" data-index="${idx}" title="Rotate 90° Right">↻</button>
+              </div>
+            `
+                : ''
+            }
+          </div>
+        `;
+      })
+      .join('');
+
+    canvasContent.innerHTML = `<div class="ilove-page-tiles-grid">${cardsHtml}</div>`;
+    this.bindPageLevelGridEvents();
+  }
+
+  private bindPageLevelGridEvents(): void {
+    // Rotate tool buttons
+    const rotRightAll = this.container.querySelector('#btn-rotate-all-right');
+    const rotLeftAll = this.container.querySelector('#btn-rotate-all-left');
+    const resetRot = this.container.querySelector('#btn-reset-rotation');
+
+    rotRightAll?.addEventListener('click', () => {
+      this.pageThumbnails.forEach((p) => (p.rotation = (p.rotation + 90) % 360));
+      this.renderPageLevelGrid();
+    });
+
+    rotLeftAll?.addEventListener('click', () => {
+      this.pageThumbnails.forEach((p) => (p.rotation = (p.rotation + 270) % 360));
+      this.renderPageLevelGrid();
+    });
+
+    resetRot?.addEventListener('click', () => {
+      this.pageThumbnails.forEach((p) => (p.rotation = 0));
+      this.renderPageLevelGrid();
+    });
+
+    // Individual rotate buttons on tiles
+    this.container.querySelectorAll('.btn-tile-rot.rot-right').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).dataset.index || '0', 10);
+        if (this.pageThumbnails[idx]) {
+          this.pageThumbnails[idx].rotation = (this.pageThumbnails[idx].rotation + 90) % 360;
+          this.renderPageLevelGrid();
+        }
+      });
+    });
+
+    this.container.querySelectorAll('.btn-tile-rot.rot-left').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).dataset.index || '0', 10);
+        if (this.pageThumbnails[idx]) {
+          this.pageThumbnails[idx].rotation = (this.pageThumbnails[idx].rotation + 270) % 360;
+          this.renderPageLevelGrid();
+        }
+      });
+    });
+
+    // Delete Pages interactive selection
+    if (this.tool.id === 'delete-pdf-pages') {
+      const delInput = this.container.querySelector('#opt-delete-pages') as HTMLInputElement;
+
+      const syncDeleteInput = () => {
+        const deletedNums = this.pageThumbnails.filter((p) => p.markedForDelete).map((p) => p.pageNumber);
+        if (delInput) {
+          delInput.value = deletedNums.join(', ') || '';
+        }
+      };
+
+      this.container.querySelectorAll('.ilove-page-tile').forEach((tile) => {
+        tile.addEventListener('click', () => {
+          const idx = parseInt((tile as HTMLElement).dataset.index || '0', 10);
+          if (this.pageThumbnails[idx]) {
+            this.pageThumbnails[idx].markedForDelete = !this.pageThumbnails[idx].markedForDelete;
+            this.renderPageLevelGrid();
+            syncDeleteInput();
+          }
+        });
+      });
+
+      this.container.querySelector('#btn-del-odd')?.addEventListener('click', () => {
+        this.pageThumbnails.forEach((p) => (p.markedForDelete = p.pageNumber % 2 !== 0));
+        this.renderPageLevelGrid();
+        syncDeleteInput();
+      });
+
+      this.container.querySelector('#btn-del-even')?.addEventListener('click', () => {
+        this.pageThumbnails.forEach((p) => (p.markedForDelete = p.pageNumber % 2 === 0));
+        this.renderPageLevelGrid();
+        syncDeleteInput();
+      });
+
+      this.container.querySelector('#btn-del-clear')?.addEventListener('click', () => {
+        this.pageThumbnails.forEach((p) => (p.markedForDelete = false));
+        this.renderPageLevelGrid();
+        syncDeleteInput();
+      });
+    }
+
+    // Extract Pages interactive selection
+    if (this.tool.id === 'extract-pdf-pages') {
+      const extInput = this.container.querySelector('#opt-extract-pages') as HTMLInputElement;
+
+      const syncExtractInput = () => {
+        const extNums = this.pageThumbnails.filter((p) => p.selected).map((p) => p.pageNumber);
+        if (extInput) {
+          extInput.value = extNums.join(', ') || '';
+        }
+      };
+
+      this.container.querySelectorAll('.ilove-page-tile').forEach((tile) => {
+        tile.addEventListener('click', () => {
+          const idx = parseInt((tile as HTMLElement).dataset.index || '0', 10);
+          if (this.pageThumbnails[idx]) {
+            this.pageThumbnails[idx].selected = !this.pageThumbnails[idx].selected;
+            this.renderPageLevelGrid();
+            syncExtractInput();
+          }
+        });
+      });
+
+      this.container.querySelector('#btn-ext-all')?.addEventListener('click', () => {
+        this.pageThumbnails.forEach((p) => (p.selected = true));
+        this.renderPageLevelGrid();
+        syncExtractInput();
+      });
+
+      this.container.querySelector('#btn-ext-none')?.addEventListener('click', () => {
+        this.pageThumbnails.forEach((p) => (p.selected = false));
+        this.renderPageLevelGrid();
+        syncExtractInput();
+      });
+    }
+  }
+
+  /**
+   * Watermark Live Interactive Preview
+   */
+  private async renderWatermarkLivePreview(): Promise<void> {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    if (!canvasContent) return;
+
+    const file = this.selectedFiles[0];
+    let pageThumb = '';
+    if (file) {
+      try {
+        const buf = await file.arrayBuffer();
+        pageThumb = await renderPageThumbnail(new Uint8Array(buf), 0, 340);
+      } catch (e) {
+        console.warn('Thumbnail render error:', e);
+      }
+    }
+
+    canvasContent.innerHTML = `
+      <div class="watermark-preview-stage">
+        <div class="watermark-sheet-box" id="watermark-sheet-container">
+          ${
+            pageThumb
+              ? `<img src="${pageThumb}" alt="Watermark Preview Page" class="watermark-bg-img" />`
+              : `<div class="watermark-blank-paper">Page 1</div>`
+          }
+          <div 
+            class="watermark-text-overlay" 
+            id="watermark-live-text-overlay"
+            style="
+              opacity: ${this.liveWatermarkOpacity}; 
+              transform: rotate(${this.liveWatermarkAngle}deg);
+            "
+          >
+            ${this.liveWatermarkText}
+          </div>
+        </div>
+        <div class="watermark-live-hint">
+          Changes in the sidebar update this preview instantly.
+        </div>
+      </div>
+    `;
+
+    this.bindWatermarkLiveEvents();
+  }
+
+  private bindWatermarkLiveEvents(): void {
+    const textInput = this.container.querySelector('#opt-watermark-text') as HTMLInputElement;
+    const opacityInput = this.container.querySelector('#opt-watermark-opacity') as HTMLInputElement;
+    const angleSelect = this.container.querySelector('#opt-watermark-angle') as HTMLSelectElement;
+    const overlay = this.container.querySelector('#watermark-live-text-overlay') as HTMLElement;
+
+    textInput?.addEventListener('input', () => {
+      this.liveWatermarkText = textInput.value || 'CONFIDENTIAL';
+      if (overlay) overlay.textContent = this.liveWatermarkText;
+    });
+
+    opacityInput?.addEventListener('input', () => {
+      this.liveWatermarkOpacity = parseFloat(opacityInput.value) || 0.3;
+      if (overlay) overlay.style.opacity = `${this.liveWatermarkOpacity}`;
+    });
+
+    angleSelect?.addEventListener('change', () => {
+      this.liveWatermarkAngle = parseInt(angleSelect.value, 10) || 45;
+      if (overlay) overlay.style.transform = `rotate(${this.liveWatermarkAngle}deg)`;
+    });
+  }
+
+  /**
+   * Add Page Numbers Live Interactive Preview
+   */
+  private async renderPageNumberLivePreview(): Promise<void> {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    if (!canvasContent) return;
+
+    const file = this.selectedFiles[0];
+    let pageThumb = '';
+    if (file) {
+      try {
+        const buf = await file.arrayBuffer();
+        pageThumb = await renderPageThumbnail(new Uint8Array(buf), 0, 340);
+      } catch (e) {
+        console.warn('Page thumbnail error:', e);
+      }
+    }
+
+    canvasContent.innerHTML = `
+      <div class="watermark-preview-stage">
+        <div class="watermark-sheet-box" id="page-num-sheet-container">
+          ${
+            pageThumb
+              ? `<img src="${pageThumb}" alt="Page numbering preview" class="watermark-bg-img" />`
+              : `<div class="watermark-blank-paper">Page 1</div>`
+          }
+          <div class="pagenum-overlay-tag pos-${this.livePageNumPosition}" id="live-pagenum-tag">
+            Page 1 of 12
+          </div>
+        </div>
+        <div class="watermark-live-hint">
+          Use the 3x3 position grid in the sidebar to choose placement.
+        </div>
+      </div>
+    `;
+
+    this.bindPageNumberLiveEvents();
+  }
+
+  private bindPageNumberLiveEvents(): void {
+    const posSelect = this.container.querySelector('#opt-page-num-pos') as HTMLSelectElement;
+    const tag = this.container.querySelector('#live-pagenum-tag') as HTMLElement;
+
+    posSelect?.addEventListener('change', () => {
+      this.livePageNumPosition = posSelect.value;
+      if (tag) {
+        tag.className = `pagenum-overlay-tag pos-${this.livePageNumPosition}`;
+      }
+    });
+
+    // 3x3 position matrix buttons in sidebar
+    this.container.querySelectorAll('.pos-grid-cell').forEach((cell) => {
+      cell.addEventListener('click', () => {
+        const pos = (cell as HTMLElement).dataset.pos || 'bottom-center';
+        this.livePageNumPosition = pos;
+        if (posSelect) posSelect.value = pos;
+        this.container.querySelectorAll('.pos-grid-cell').forEach((c) => c.classList.remove('active'));
+        cell.classList.add('active');
+        if (tag) {
+          tag.className = `pagenum-overlay-tag pos-${pos}`;
+        }
+      });
+    });
+  }
+
+  /**
+   * Compress PDF Visual Preview & Target Estimator
+   */
+  private async renderCompressPreview(): Promise<void> {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    if (!canvasContent) return;
+
+    const file = this.selectedFiles[0];
+    let pageThumb = '';
+    if (file) {
+      try {
+        const buf = await file.arrayBuffer();
+        pageThumb = await renderPageThumbnail(new Uint8Array(buf), 0, 240);
+      } catch (e) {
+        console.warn('Compress thumb error:', e);
+      }
+    }
+
+    canvasContent.innerHTML = `
+      <div class="compress-hero-card">
+        <div class="compress-preview-col">
+          <div class="compress-sheet-wrap">
+            ${
+              pageThumb
+                ? `<img src="${pageThumb}" alt="${file?.name}" class="compress-doc-img" />`
+                : `<div class="watermark-blank-paper">${file?.name}</div>`
+            }
+          </div>
+        </div>
+        <div class="compress-info-col">
+          <div class="compress-stat-pill">
+            <span class="stat-label">Initial Size:</span>
+            <span class="stat-val font-mono">${formatBytes(file?.size || 0)}</span>
+          </div>
+          <div class="compress-estimator-box">
+            <div class="estimator-header">
+              <span class="estimator-title">Optimization Level</span>
+              <span class="estimator-badge" id="compress-estimate-badge">~50% - 70% Reduction</span>
+            </div>
+            <p class="estimator-desc" id="compress-estimate-desc">
+              Balanced compression maintains crisp font vector curves while compressing background raster bitmaps.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Bind compression card selection updates
+    this.container.querySelectorAll('.ilove-comp-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const level = (card as HTMLElement).dataset.level;
+        const badge = this.container.querySelector('#compress-estimate-badge');
+        const desc = this.container.querySelector('#compress-estimate-desc');
+
+        if (level === 'high') {
+          if (badge) badge.textContent = '~70% - 85% Reduction';
+          if (desc) desc.textContent = 'Extreme compression mode: ideal for email attachments and mobile web distribution.';
+        } else if (level === 'low') {
+          if (badge) badge.textContent = '~20% - 40% Reduction';
+          if (desc) desc.textContent = 'High visual quality mode: optimal for printing, portfolios, and design documents.';
+        } else {
+          if (badge) badge.textContent = '~50% - 70% Reduction';
+          if (desc) desc.textContent = 'Balanced compression: the gold standard combination of high crispness and small file size.';
+        }
+      });
+    });
+  }
+
+  /**
+   * Standard Document Card for other tools (Word, Excel, PowerPoint, Text, etc.)
+   */
+  private async renderStandardDocumentCard(): Promise<void> {
+    const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
+    if (!canvasContent) return;
+
+    const file = this.selectedFiles[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toUpperCase() || 'DOC';
+    let thumbUrl = '';
+
+    if (file.type.startsWith('image/')) {
+      thumbUrl = URL.createObjectURL(file);
+    } else if (file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const buf = await file.arrayBuffer();
+        thumbUrl = await renderPageThumbnail(new Uint8Array(buf), 0, 220);
+      } catch (e) {
+        // Fallback icon
+      }
+    }
+
+    canvasContent.innerHTML = `
+      <div class="standard-doc-stage">
+        <div class="standard-doc-card">
+          <div class="doc-card-visual">
+            ${
+              thumbUrl
+                ? `<img src="${thumbUrl}" alt="${file.name}" class="standard-doc-thumb" />`
+                : `
+              <div class="standard-doc-icon-box">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span class="standard-doc-ext font-mono">${ext}</span>
+              </div>
+            `
+            }
+          </div>
+          <div class="doc-card-details">
+            <h4 class="doc-card-filename" title="${file.name}">${file.name}</h4>
+            <div class="doc-card-meta-row">
+              <span class="meta-item font-mono">${formatBytes(file.size)}</span>
+              <span class="meta-sep">•</span>
+              <span class="meta-item">${ext} Document</span>
+              <span class="meta-sep">•</span>
+              <span class="meta-item" style="color: var(--pra-success);">Verified Ready</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   private getPrimaryActionLabel(): string {
     switch (this.tool.id) {
       case 'merge-pdf':
-        return 'Merge PDFs';
+        return 'Merge PDF';
       case 'split-pdf':
         return 'Split PDF';
       case 'organize-pdf':
       case 'organize-pdf-pages':
-        return 'Open Page Organizer';
+        return 'Organize PDF Pages';
       case 'delete-pdf-pages':
         return 'Delete Selected Pages';
       case 'extract-pdf-pages':
@@ -236,47 +1095,6 @@ export class ToolPage {
     }
   }
 
-  private initSubComponents(): void {
-    const errorBanner = this.container.querySelector('#tp-error-banner') as HTMLElement;
-    const tooLargeBanner = this.container.querySelector('#tp-too-large-banner') as HTMLElement;
-    const tooLargeText = this.container.querySelector('#tp-too-large-text') as HTMLElement;
-    const actionBar = this.container.querySelector('#tp-action-bar') as HTMLElement;
-    const optionsPanel = this.container.querySelector('#tp-options-container') as HTMLElement;
-
-    this.dropzone = new Dropzone({
-      containerId: 'tp-dropzone-container',
-      allowedExtensions: this.tool.acceptedExtensions,
-      multiple: !!this.tool.multiple,
-      onFilesChanged: (files) => {
-        this.selectedFiles = files;
-        errorBanner.style.display = 'none';
-        tooLargeBanner.style.display = 'none';
-
-        if (files.length > 0) {
-          actionBar.style.display = 'block';
-          optionsPanel.style.display = 'block';
-        } else {
-          actionBar.style.display = 'none';
-          optionsPanel.style.display = 'none';
-        }
-      },
-      onError: (msg) => {
-        const errorDesc = this.container.querySelector('#tp-error-message') as HTMLElement;
-        if (errorDesc) errorDesc.textContent = msg;
-        errorBanner.style.display = 'flex';
-      },
-      onFileTooLarge: (name, sizeStr) => {
-        if (tooLargeText) {
-          tooLargeText.textContent = `"${name}" is ${sizeStr}. Maximum file size is 50 MB per file.`;
-        }
-        tooLargeBanner.style.display = 'flex';
-      },
-    });
-
-    this.progressBar = new ProgressBar('tp-progress-container');
-    this.resultCard = new ResultCard('tp-result-container');
-  }
-
   private renderDirectEditor(): string {
     if (this.tool.id === 'html-to-pdf') {
       return `
@@ -289,7 +1107,7 @@ export class ToolPage {
 <head>
   <style>
     body { font-family: sans-serif; padding: 24px; color: #1e293b; }
-    h1 { color: #4338ca; }
+    h1 { color: #E11D48; }
   </style>
 </head>
 <body>
@@ -358,17 +1176,20 @@ This text will be formatted and paginated into a clean PDF document.
     return '';
   }
 
+  /**
+   * Purpose-built sidebar configuration options for each of the 30 tools
+   */
   private renderToolOptions(): string {
     switch (this.tool.id) {
       // 1. JPG to PDF / 2. PNG to PDF
       case 'jpg-to-pdf':
       case 'png-to-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Page Size</label>
               <select class="form-select" id="opt-img-pagesize">
-                <option value="a4">A4 (Standard 210 × 297 mm)</option>
+                <option value="a4" selected>A4 (Standard 210 × 297 mm)</option>
                 <option value="letter">US Letter (8.5 × 11 in)</option>
                 <option value="fit">Fit to Image Dimensions</option>
               </select>
@@ -376,13 +1197,13 @@ This text will be formatted and paginated into a clean PDF document.
             <div class="form-group">
               <label class="form-label">Page Orientation</label>
               <select class="form-select" id="opt-img-orientation">
-                <option value="portrait">Portrait</option>
+                <option value="portrait" selected>Portrait</option>
                 <option value="landscape">Landscape</option>
                 <option value="auto">Auto-detect from image</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Margin</label>
+              <label class="form-label">Margins</label>
               <select class="form-select" id="opt-img-margin">
                 <option value="none">No Margin (Full Bleed)</option>
                 <option value="small" selected>Small Margin (10 mm)</option>
@@ -402,11 +1223,11 @@ This text will be formatted and paginated into a clean PDF document.
       // 3. Images to PDF
       case 'images-to-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Page Size</label>
               <select class="form-select" id="opt-images-pagesize">
-                <option value="a4">A4 Standard</option>
+                <option value="a4" selected>A4 Standard</option>
                 <option value="letter">US Letter</option>
                 <option value="fit">Fit to each image</option>
               </select>
@@ -414,13 +1235,13 @@ This text will be formatted and paginated into a clean PDF document.
             <div class="form-group">
               <label class="form-label">Orientation</label>
               <select class="form-select" id="opt-images-orientation">
-                <option value="auto">Auto (per image aspect ratio)</option>
+                <option value="auto" selected>Auto (Per image aspect)</option>
                 <option value="portrait">All Portrait</option>
                 <option value="landscape">All Landscape</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Margin</label>
+              <label class="form-label">Margins</label>
               <select class="form-select" id="opt-images-margin">
                 <option value="none">None</option>
                 <option value="small" selected>Small (10 mm)</option>
@@ -430,9 +1251,22 @@ This text will be formatted and paginated into a clean PDF document.
             <div class="form-group">
               <label class="form-label">Image Fit</label>
               <select class="form-select" id="opt-images-fit">
-                <option value="fit">Fit page</option>
+                <option value="fit" selected>Fit page</option>
                 <option value="fill">Fill page</option>
               </select>
+            </div>
+          </div>
+        `;
+
+      // 4. Word to PDF
+      case 'word-to-pdf':
+        return `
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">ℹ️</div>
+              <div class="info-box-text">
+                Direct Word to PDF conversion preserves headers, paragraphs, styling, and embedded tables.
+              </div>
             </div>
           </div>
         `;
@@ -440,27 +1274,40 @@ This text will be formatted and paginated into a clean PDF document.
       // 5. Excel to PDF
       case 'excel-to-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Sheet Selection</label>
               <select class="form-select" id="opt-excel-sheets">
-                <option value="all">Convert All Sheets</option>
+                <option value="all" selected>Convert All Sheets</option>
                 <option value="first">First Sheet Only</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Orientation</label>
               <select class="form-select" id="opt-excel-orientation">
-                <option value="landscape">Landscape (Recommended for wide tables)</option>
+                <option value="landscape" selected>Landscape (Recommended for tables)</option>
                 <option value="portrait">Portrait</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Fit to Page</label>
               <select class="form-select" id="opt-excel-fit">
-                <option value="width">Fit All Columns to Page Width</option>
-                <option value="actual">Actual Scale (Multi-page wrap)</option>
+                <option value="width" selected>Fit All Columns to Width</option>
+                <option value="actual">Actual Scale</option>
               </select>
+            </div>
+          </div>
+        `;
+
+      // 6. PowerPoint to PDF
+      case 'powerpoint-to-pdf':
+        return `
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">📊</div>
+              <div class="info-box-text">
+                PowerPoint slides are rendered sequentially into widescreen PDF pages.
+              </div>
             </div>
           </div>
         `;
@@ -468,11 +1315,11 @@ This text will be formatted and paginated into a clean PDF document.
       // 8. TXT to PDF
       case 'txt-to-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Font Family</label>
               <select class="form-select" id="opt-txt-font">
-                <option value="Helvetica">Helvetica (Clean Sans)</option>
+                <option value="Helvetica" selected>Helvetica (Clean Sans)</option>
                 <option value="Courier">Courier (Monospace)</option>
                 <option value="Times">Times Roman (Serif)</option>
               </select>
@@ -483,22 +1330,13 @@ This text will be formatted and paginated into a clean PDF document.
                 <option value="10">10 pt (Compact)</option>
                 <option value="12" selected>12 pt (Standard)</option>
                 <option value="14">14 pt (Large)</option>
-                <option value="16">16 pt (Extra Large)</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Page Size</label>
               <select class="form-select" id="opt-txt-pagesize">
-                <option value="a4">A4</option>
+                <option value="a4" selected>A4</option>
                 <option value="letter">US Letter</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Margins</label>
-              <select class="form-select" id="opt-txt-margins">
-                <option value="normal">Normal (20 mm)</option>
-                <option value="compact">Compact (10 mm)</option>
-                <option value="wide">Wide (30 mm)</option>
               </select>
             </div>
           </div>
@@ -508,21 +1346,34 @@ This text will be formatted and paginated into a clean PDF document.
       case 'pdf-to-jpg':
       case 'pdf-to-png':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
-              <label class="form-label">Page Selection</label>
+              <label class="form-label">Pages to Convert</label>
               <select class="form-select" id="opt-pdf2img-pages">
-                <option value="all">Convert All Pages</option>
+                <option value="all" selected>Convert All Pages</option>
                 <option value="first">First Page Only</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Resolution / Quality</label>
               <select class="form-select" id="opt-pdf2img-quality">
-                <option value="high">High Resolution (300 DPI — Print Quality)</option>
-                <option value="medium" selected>Balanced (150 DPI — Standard Web)</option>
+                <option value="high" selected>High (300 DPI — Print Quality)</option>
+                <option value="medium">Balanced (150 DPI — Standard Web)</option>
                 <option value="low">Compact (72 DPI — Smallest ZIP)</option>
               </select>
+            </div>
+          </div>
+        `;
+
+      // 14. Merge PDF
+      case 'merge-pdf':
+        return `
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">📑</div>
+              <div class="info-box-text">
+                Drag cards or use arrow buttons in the canvas to arrange your desired merge order.
+              </div>
             </div>
           </div>
         `;
@@ -530,18 +1381,18 @@ This text will be formatted and paginated into a clean PDF document.
       // 15. Split PDF
       case 'split-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Split Mode</label>
               <select class="form-select" id="opt-split-mode">
-                <option value="ranges">Extract Page Ranges (e.g. 1-3, 5)</option>
-                <option value="all">Separate Every Page into Standalone PDF</option>
+                <option value="ranges" selected>Extract Page Ranges</option>
+                <option value="all">Separate Every Page into PDF</option>
               </select>
             </div>
             <div class="form-group" id="opt-split-range-group">
-              <label class="form-label">Page Range</label>
+              <label class="form-label">Page Ranges</label>
               <input type="text" class="form-input" id="opt-split-ranges" placeholder="e.g. 1-2, 4" value="1" />
-              <small style="color: var(--pra-text-muted); font-size: 0.8rem;">Use commas and hyphens to define ranges.</small>
+              <small class="form-hint">Separate multiple ranges with commas (e.g. 1-3, 5-8).</small>
             </div>
           </div>
         `;
@@ -549,42 +1400,44 @@ This text will be formatted and paginated into a clean PDF document.
       // 17. Delete PDF Pages
       case 'delete-pdf-pages':
         return `
-          <div class="form-group">
-            <label class="form-label">Pages to Delete</label>
-            <input type="text" class="form-input" id="opt-delete-pages" placeholder="e.g. 1, 3-5" value="1" />
-            <small style="color: var(--pra-text-muted); font-size: 0.8rem;">Specify page numbers or ranges to permanently remove.</small>
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Pages to Remove</label>
+              <input type="text" class="form-input" id="opt-delete-pages" placeholder="e.g. 1, 3-5" value="" />
+              <small class="form-hint">Click thumbnails on the left canvas to select pages to delete.</small>
+            </div>
           </div>
         `;
 
       // 18. Extract PDF Pages
       case 'extract-pdf-pages':
         return `
-          <div class="form-group">
-            <label class="form-label">Pages to Extract</label>
-            <input type="text" class="form-input" id="opt-extract-pages" placeholder="e.g. 1-3, 5" value="1" />
-            <small style="color: var(--pra-text-muted); font-size: 0.8rem;">Specify page numbers or ranges to extract into a new document.</small>
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Pages to Extract</label>
+              <input type="text" class="form-input" id="opt-extract-pages" placeholder="e.g. 1-3, 5" value="1" />
+              <small class="form-hint">Click thumbnails on the left canvas to select pages to extract.</small>
+            </div>
           </div>
         `;
 
       // 19. Rotate PDF
       case 'rotate-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
-              <label class="form-label">Rotation Angle</label>
+              <label class="form-label">Default Rotation Angle</label>
               <select class="form-select" id="opt-rotate-angle">
-                <option value="90">90° Clockwise</option>
+                <option value="90" selected>90° Clockwise</option>
                 <option value="180">180° Flip</option>
                 <option value="270">270° Counter-Clockwise</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Target Pages</label>
-              <select class="form-select" id="opt-rotate-target">
-                <option value="all">All Pages</option>
-                <option value="odd">Odd Pages Only</option>
-                <option value="even">Even Pages Only</option>
-              </select>
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">🔄</div>
+              <div class="info-box-text">
+                Hover over any thumbnail on the left canvas to rotate that individual page.
+              </div>
             </div>
           </div>
         `;
@@ -592,10 +1445,7 @@ This text will be formatted and paginated into a clean PDF document.
       // 20. Crop PDF
       case 'crop-pdf':
         return `
-          <p style="font-size: 0.85rem; color: var(--pra-text-secondary); margin-bottom: 12px;">
-            Set margins in points to crop out borders or headers/footers:
-          </p>
-          <div class="crop-margins-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Top Margin (pt)</label>
               <input type="number" class="form-input" id="opt-crop-top" value="20" min="0" max="200" />
@@ -615,33 +1465,36 @@ This text will be formatted and paginated into a clean PDF document.
           </div>
         `;
 
-      // 21. Compress PDF
+      // 21. Compress PDF (iLovePDF signature 3 compression cards)
       case 'compress-pdf':
         return `
-          <div class="form-group">
-            <label class="form-label">Select Compression Profile</label>
-            <div class="compression-profiles-grid">
-              <label class="compression-card">
-                <input type="radio" name="comp-level" value="low" />
-                <div class="comp-card-content">
-                  <div class="comp-card-title">Low Compression</div>
-                  <div class="comp-card-desc">Pristine visual quality. Light file size reduction.</div>
-                </div>
-              </label>
-
-              <label class="compression-card active">
-                <input type="radio" name="comp-level" value="medium" checked />
-                <div class="comp-card-content">
-                  <div class="comp-card-title">Balanced (Recommended)</div>
-                  <div class="comp-card-desc">Good quality, strong size reduction for email and web.</div>
-                </div>
-              </label>
-
-              <label class="compression-card">
+          <div class="options-stack">
+            <label class="form-label">Compression Level</label>
+            <div class="ilove-comp-cards-list">
+              <label class="ilove-comp-card" data-level="high">
                 <input type="radio" name="comp-level" value="high" />
-                <div class="comp-card-content">
-                  <div class="comp-card-title">High Compression</div>
-                  <div class="comp-card-desc">Smallest file size. May lightly reduce image crispness.</div>
+                <div class="comp-card-body">
+                  <div class="comp-card-title">Extreme Compression</div>
+                  <div class="comp-card-sub">Less quality, high file reduction</div>
+                </div>
+              </label>
+
+              <label class="ilove-comp-card active" data-level="medium">
+                <input type="radio" name="comp-level" value="medium" checked />
+                <div class="comp-card-body">
+                  <div class="comp-card-title-row">
+                    <span class="comp-card-title">Recommended Compression</span>
+                    <span class="comp-badge-rec">RECOMMENDED</span>
+                  </div>
+                  <div class="comp-card-sub">Good quality, strong compression</div>
+                </div>
+              </label>
+
+              <label class="ilove-comp-card" data-level="low">
+                <input type="radio" name="comp-level" value="low" />
+                <div class="comp-card-body">
+                  <div class="comp-card-title">Low Compression</div>
+                  <div class="comp-card-sub">High quality, light compression</div>
                 </div>
               </label>
             </div>
@@ -651,28 +1504,44 @@ This text will be formatted and paginated into a clean PDF document.
       // 22. OCR PDF
       case 'ocr-pdf':
         return `
-          <div class="form-group">
-            <label class="form-label">Document OCR Language</label>
-            <select class="form-select" id="opt-ocr-lang">
-              <option value="eng" selected>English (eng)</option>
-              <option value="spa">Spanish (spa)</option>
-              <option value="fra">French (fra)</option>
-              <option value="deu">German (deu)</option>
-              <option value="hin">Hindi (hin)</option>
-            </select>
-            <div class="spec-note-box" style="margin-top: 10px;">
-              <span>⚡ WebAssembly OCR engine — 100% private optical character recognition.</span>
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">OCR Document Language</label>
+              <select class="form-select" id="opt-ocr-lang">
+                <option value="eng" selected>English (eng)</option>
+                <option value="spa">Spanish (spa)</option>
+                <option value="fra">French (fra)</option>
+                <option value="deu">German (deu)</option>
+                <option value="hin">Hindi (hin)</option>
+              </select>
+            </div>
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">⚡</div>
+              <div class="info-box-text">
+                WebAssembly client-side engine. Recognizes scanned text into a searchable layer.
+              </div>
             </div>
           </div>
         `;
 
-      // 23. Add Page Numbers
+      // 23. Add Page Numbers (iLovePDF 3x3 position matrix)
       case 'add-page-numbers':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
-              <label class="form-label">Position</label>
-              <select class="form-select" id="opt-page-num-pos">
+              <label class="form-label">Position Grid</label>
+              <div class="pos-3x3-grid">
+                <button type="button" class="pos-grid-cell" data-pos="top-left" title="Top Left">↖</button>
+                <button type="button" class="pos-grid-cell" data-pos="top-center" title="Top Center">↑</button>
+                <button type="button" class="pos-grid-cell" data-pos="top-right" title="Top Right">↗</button>
+                <button type="button" class="pos-grid-cell" data-pos="center-left" title="Center Left">←</button>
+                <button type="button" class="pos-grid-cell" data-pos="center" title="Center">•</button>
+                <button type="button" class="pos-grid-cell" data-pos="center-right" title="Center Right">→</button>
+                <button type="button" class="pos-grid-cell" data-pos="bottom-left" title="Bottom Left">↙</button>
+                <button type="button" class="pos-grid-cell active" data-pos="bottom-center" title="Bottom Center">↓</button>
+                <button type="button" class="pos-grid-cell" data-pos="bottom-right" title="Bottom Right">↘</button>
+              </div>
+              <select class="form-select" id="opt-page-num-pos" style="display: none;">
                 <option value="bottom-center" selected>Bottom Center</option>
                 <option value="bottom-right">Bottom Right</option>
                 <option value="bottom-left">Bottom Left</option>
@@ -681,6 +1550,7 @@ This text will be formatted and paginated into a clean PDF document.
                 <option value="top-left">Top Left</option>
               </select>
             </div>
+
             <div class="form-group">
               <label class="form-label">Format Style</label>
               <select class="form-select" id="opt-page-num-fmt">
@@ -690,77 +1560,56 @@ This text will be formatted and paginated into a clean PDF document.
                 <option value="n">Numbers Only (1, 2, 3...)</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Starting Number</label>
-              <input type="number" class="form-input" id="opt-page-num-start" value="1" min="1" />
-            </div>
           </div>
         `;
 
       // 24. Watermark PDF
       case 'watermark-pdf':
         return `
-          <div class="form-group">
-            <label class="form-label">Watermark Text</label>
-            <input type="text" class="form-input" id="opt-watermark-text" value="CONFIDENTIAL" />
-          </div>
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
-              <label class="form-label">Opacity (0.1 to 1.0)</label>
-              <input type="number" step="0.1" min="0.1" max="1.0" class="form-input" id="opt-watermark-opacity" value="0.3" />
+              <label class="form-label">Watermark Text</label>
+              <input type="text" class="form-input" id="opt-watermark-text" value="CONFIDENTIAL" />
             </div>
+
             <div class="form-group">
-              <label class="form-label">Rotation Angle (°)</label>
+              <label class="form-label">Opacity (<span id="wm-opacity-display">30%</span>)</label>
+              <input type="range" class="form-range" id="opt-watermark-opacity" min="0.1" max="1.0" step="0.05" value="0.3" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Rotation Angle</label>
               <select class="form-select" id="opt-watermark-angle">
                 <option value="45" selected>45° Diagonal</option>
                 <option value="0">0° Horizontal</option>
                 <option value="90">90° Vertical</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Font Size (pt)</label>
-              <input type="number" class="form-input" id="opt-watermark-size" value="48" min="12" max="120" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Target Pages</label>
-              <select class="form-select" id="opt-watermark-pages">
-                <option value="all">All Pages</option>
-                <option value="odd">Odd Pages Only</option>
-                <option value="even">Even Pages Only</option>
-              </select>
-            </div>
-          </div>
-        `;
-
-      // 25. Full PDF Editing
-      case 'full-pdf-editing':
-        return `
-          <div style="text-align: center; padding: 20px 0;">
-            <p style="color: var(--pra-text-secondary); margin-bottom: 16px;">
-              Full PDF Editing Studio provides an advanced 4-panel document workspace with freehand drawing, shapes, images, and text annotations.
-            </p>
-            <a href="#/editor" class="btn btn-primary btn-lg">
-              Launch Full PDF Editor Studio →
-            </a>
           </div>
         `;
 
       // 26. Password-Protect PDF
       case 'password-protect-pdf':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
-              <label class="form-label">Password</label>
+              <label class="form-label">Set Password</label>
               <div class="password-input-wrapper">
                 <input type="password" class="form-input" id="opt-protect-pass" placeholder="Enter secure password" />
-                <button type="button" class="pwd-toggle-btn" id="btn-toggle-protect-pwd" title="Show / Hide Password">
-                  👁️
-                </button>
+                <button type="button" class="pwd-toggle-btn" id="btn-toggle-protect-pwd" title="Show / Hide">👁️</button>
               </div>
             </div>
+
             <div class="form-group">
               <label class="form-label">Confirm Password</label>
               <input type="password" class="form-input" id="opt-protect-pass-confirm" placeholder="Re-enter password" />
+            </div>
+
+            <div class="password-strength-box" id="pwd-strength-container" style="display: none;">
+              <div class="strength-bar-track">
+                <div class="strength-bar-fill" id="pwd-strength-bar"></div>
+              </div>
+              <span class="strength-label" id="pwd-strength-label">Password Strength</span>
             </div>
           </div>
         `;
@@ -768,11 +1617,16 @@ This text will be formatted and paginated into a clean PDF document.
       // 27. Unlock PDF
       case 'unlock-pdf':
         return `
-          <div class="form-group">
-            <label class="form-label">Password to Remove Protection (if encrypted)</label>
-            <input type="password" class="form-input" id="opt-unlock-pass" placeholder="Enter PDF password" />
-            <div class="spec-note-box" style="margin-top: 10px;">
-              <span>ℹ️ Notice: Only unlock PDF documents that you are authorized to access and modify.</span>
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Document Password (if encrypted)</label>
+              <input type="password" class="form-input" id="opt-unlock-pass" placeholder="Enter PDF password" />
+            </div>
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">🔒</div>
+              <div class="info-box-text">
+                Removes encryption and print/copy restrictions from authorized documents.
+              </div>
             </div>
           </div>
         `;
@@ -780,7 +1634,7 @@ This text will be formatted and paginated into a clean PDF document.
       // 28. Edit PDF Metadata
       case 'edit-pdf-metadata':
         return `
-          <div class="options-grid">
+          <div class="options-stack">
             <div class="form-group">
               <label class="form-label">Document Title</label>
               <input type="text" class="form-input" id="opt-meta-title" placeholder="Document Title" />
@@ -794,8 +1648,8 @@ This text will be formatted and paginated into a clean PDF document.
               <input type="text" class="form-input" id="opt-meta-subject" placeholder="Document Subject" />
             </div>
             <div class="form-group">
-              <label class="form-label">Keywords (comma-separated)</label>
-              <input type="text" class="form-input" id="opt-meta-keywords" placeholder="pdf, report, praverse" />
+              <label class="form-label">Keywords</label>
+              <input type="text" class="form-input" id="opt-meta-keywords" placeholder="e.g. report, pdf, praverse" />
             </div>
           </div>
         `;
@@ -803,21 +1657,28 @@ This text will be formatted and paginated into a clean PDF document.
       // 29. Extract PDF Text
       case 'extract-pdf-text':
         return `
-          <div class="spec-note-box">
-            <span>Extract all plaintext blocks from your PDF. Preview and copy or download as a .txt document.</span>
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">📝</div>
+              <div class="info-box-text">
+                Extracts clean plaintext formatting. Download as .txt or copy directly to clipboard.
+              </div>
+            </div>
           </div>
         `;
 
       // 30. RTF Conversion
       case 'rtf-conversion':
         return `
-          <div class="form-group">
-            <label class="form-label">Conversion Mode</label>
-            <select class="form-select" id="opt-rtf-mode">
-              <option value="auto">Auto-detect (RTF to PDF or PDF to RTF)</option>
-              <option value="rtf-to-pdf">RTF → PDF</option>
-              <option value="pdf-to-rtf">PDF → RTF</option>
-            </select>
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Conversion Mode</label>
+              <select class="form-select" id="opt-rtf-mode">
+                <option value="auto" selected>Auto-detect (RTF to PDF / PDF to RTF)</option>
+                <option value="rtf-to-pdf">RTF → PDF</option>
+                <option value="pdf-to-rtf">PDF → RTF</option>
+              </select>
+            </div>
           </div>
         `;
 
@@ -830,33 +1691,24 @@ This text will be formatted and paginated into a clean PDF document.
     const processBtn = this.container.querySelector('#tp-process-btn') as HTMLElement;
     const errorBanner = this.container.querySelector('#tp-error-banner') as HTMLElement;
     const retryBtn = this.container.querySelector('#tp-error-retry-btn');
-    const tooLargeRetryBtn = this.container.querySelector('#tp-too-large-retry-btn');
+    const backToPickerBtn = this.container.querySelector('#btn-back-to-picker');
 
-    // Retry buttons
-    if (retryBtn) {
-      retryBtn.addEventListener('click', () => {
-        errorBanner.style.display = 'none';
-        if (this.selectedFiles.length > 0) {
-          processBtn.click();
-        }
-      });
-    }
+    backToPickerBtn?.addEventListener('click', () => {
+      this.transitionToSelection();
+    });
 
-    if (tooLargeRetryBtn) {
-      tooLargeRetryBtn.addEventListener('click', () => {
-        const tooLargeBanner = this.container.querySelector('#tp-too-large-banner') as HTMLElement;
-        if (tooLargeBanner) tooLargeBanner.style.display = 'none';
-        this.dropzone.openPicker();
-      });
-    }
+    retryBtn?.addEventListener('click', () => {
+      errorBanner.style.display = 'none';
+      if (this.selectedFiles.length > 0) {
+        processBtn?.click();
+      }
+    });
 
     // Dual Input tab switcher
     const tabFile = this.container.querySelector('#tab-mode-file');
     const tabDirect = this.container.querySelector('#tab-mode-direct');
     const dropzoneWrapper = this.container.querySelector('#tp-dropzone-wrapper') as HTMLElement;
     const directEditorWrapper = this.container.querySelector('#tp-direct-editor-container') as HTMLElement;
-    const actionBar = this.container.querySelector('#tp-action-bar') as HTMLElement;
-    const optionsPanel = this.container.querySelector('#tp-options-container') as HTMLElement;
 
     if (tabFile && tabDirect) {
       tabFile.addEventListener('click', () => {
@@ -865,13 +1717,6 @@ This text will be formatted and paginated into a clean PDF document.
         tabDirect.classList.remove('active');
         if (dropzoneWrapper) dropzoneWrapper.style.display = 'block';
         if (directEditorWrapper) directEditorWrapper.style.display = 'none';
-        if (this.selectedFiles.length > 0) {
-          actionBar.style.display = 'block';
-          optionsPanel.style.display = 'block';
-        } else {
-          actionBar.style.display = 'none';
-          optionsPanel.style.display = 'none';
-        }
       });
 
       tabDirect.addEventListener('click', () => {
@@ -880,9 +1725,7 @@ This text will be formatted and paginated into a clean PDF document.
         tabFile.classList.remove('active');
         if (dropzoneWrapper) dropzoneWrapper.style.display = 'none';
         if (directEditorWrapper) directEditorWrapper.style.display = 'block';
-        // Always show action button in direct editor mode
-        actionBar.style.display = 'block';
-        optionsPanel.style.display = 'block';
+        this.transitionToWorkspace();
       });
     }
 
@@ -891,7 +1734,6 @@ This text will be formatted and paginated into a clean PDF document.
     const mdPreview = this.container.querySelector('#direct-md-preview');
     if (mdInput && mdPreview) {
       mdInput.addEventListener('input', () => {
-        // Simple client-side Markdown rendering preview
         const raw = mdInput.value;
         const html = raw
           .replace(/^# (.*$)/gim, '<h1>$1</h1>')
@@ -904,25 +1746,78 @@ This text will be formatted and paginated into a clean PDF document.
       });
     }
 
-    // Password show/hide toggle
+    // Password show/hide toggle & strength meter
     const pwdToggle = this.container.querySelector('#btn-toggle-protect-pwd');
     const pwdInput = this.container.querySelector('#opt-protect-pass') as HTMLInputElement;
+    const pwdStrengthBox = this.container.querySelector('#pwd-strength-container') as HTMLElement;
+    const pwdStrengthBar = this.container.querySelector('#pwd-strength-bar') as HTMLElement;
+    const pwdStrengthLabel = this.container.querySelector('#pwd-strength-label') as HTMLElement;
+
     if (pwdToggle && pwdInput) {
       pwdToggle.addEventListener('click', () => {
         pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
       });
     }
 
+    if (pwdInput && pwdStrengthBox) {
+      pwdInput.addEventListener('input', () => {
+        const val = pwdInput.value;
+        if (!val) {
+          pwdStrengthBox.style.display = 'none';
+          return;
+        }
+        pwdStrengthBox.style.display = 'block';
+
+        let score = 0;
+        if (val.length >= 8) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+
+        if (score <= 1) {
+          if (pwdStrengthBar) {
+            pwdStrengthBar.style.width = '25%';
+            pwdStrengthBar.style.backgroundColor = '#EF4444';
+          }
+          if (pwdStrengthLabel) pwdStrengthLabel.textContent = 'Weak Password';
+        } else if (score === 2 || score === 3) {
+          if (pwdStrengthBar) {
+            pwdStrengthBar.style.width = '65%';
+            pwdStrengthBar.style.backgroundColor = '#F59E0B';
+          }
+          if (pwdStrengthLabel) pwdStrengthLabel.textContent = 'Medium Password';
+        } else {
+          if (pwdStrengthBar) {
+            pwdStrengthBar.style.width = '100%';
+            pwdStrengthBar.style.backgroundColor = '#10B981';
+          }
+          if (pwdStrengthLabel) pwdStrengthLabel.textContent = 'Strong Password';
+        }
+      });
+    }
+
+    // Watermark Opacity slider readout
+    const wmOpacityRange = this.container.querySelector('#opt-watermark-opacity') as HTMLInputElement;
+    const wmOpacityDisplay = this.container.querySelector('#wm-opacity-display');
+    if (wmOpacityRange && wmOpacityDisplay) {
+      wmOpacityRange.addEventListener('input', () => {
+        const pct = Math.round(parseFloat(wmOpacityRange.value) * 100);
+        wmOpacityDisplay.textContent = `${pct}%`;
+      });
+    }
+
     // Compression profiles selection card active state
-    this.container.querySelectorAll('.compression-card').forEach((card) => {
+    this.container.querySelectorAll('.ilove-comp-card').forEach((card) => {
       card.addEventListener('click', () => {
-        this.container.querySelectorAll('.compression-card').forEach((c) => c.classList.remove('active'));
+        this.container.querySelectorAll('.ilove-comp-card').forEach((c) => c.classList.remove('active'));
         card.classList.add('active');
+        const radio = card.querySelector('input[type="radio"]') as HTMLInputElement;
+        if (radio) radio.checked = true;
       });
     });
 
     // Primary Action Button Execution
-    processBtn.addEventListener('click', async () => {
+    processBtn?.addEventListener('click', async () => {
       errorBanner.style.display = 'none';
       processBtn.setAttribute('disabled', 'true');
       this.progressBar.reset();
@@ -1209,17 +2104,21 @@ This text will be formatted and paginated into a clean PDF document.
   ): void {
     this.progressBar.update(100, 'Processing complete!');
     this.progressBar.hide();
+
+    // Hide workspace
+    const workspaceContainer = this.container.querySelector('#tp-workspace-container') as HTMLElement;
+    if (workspaceContainer) workspaceContainer.style.display = 'none';
+
     this.resultCard.show({
       filename,
       data,
       originalSize,
       newSize,
       reductionRatio: ratio,
+      toolId: this.tool.id,
+      toolTitle: this.tool.title,
       onReset: () => {
-        this.dropzone.clearFiles();
-        this.selectedFiles = [];
-        (this.container.querySelector('#tp-action-bar') as HTMLElement).style.display = 'none';
-        (this.container.querySelector('#tp-options-container') as HTMLElement).style.display = 'none';
+        this.transitionToSelection();
       },
     });
   }

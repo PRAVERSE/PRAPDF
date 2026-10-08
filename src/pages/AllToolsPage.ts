@@ -1,7 +1,6 @@
 /**
  * PRA PDF — Dedicated All Tools Catalog Page
- * Architectural Swiss Minimalist Catalog of all 30 Tools.
- * Clean search command bar, category tabs, and high-density responsive directory.
+ * Complete catalog of all 30 PDF Tools with instant search and category filter.
  */
 
 import { TOOLS_REGISTRY, ToolDefinition, CATEGORY_LABELS, ToolCategory } from '../services/toolsRegistry';
@@ -21,86 +20,77 @@ export class AllToolsPage {
   public render(): void {
     const filterCategories: { key: ToolCategory | 'all'; label: string }[] = [
       { key: 'all', label: 'All Tools (30)' },
+      { key: 'organize', label: 'Organize PDF' },
+      { key: 'optimize', label: 'Optimize PDF' },
       { key: 'convert-to-pdf', label: 'Convert to PDF' },
       { key: 'convert-from-pdf', label: 'Convert from PDF' },
-      { key: 'organize', label: 'Organize & Pages' },
-      { key: 'optimize', label: 'Optimize & OCR' },
       { key: 'edit', label: 'Annotate & Edit' },
       { key: 'security', label: 'Security' },
       { key: 'extract-manage', label: 'Extract & Metadata' },
-      { key: 'other-conversions', label: 'RTF Conversion' },
+      { key: 'other-conversions', label: 'RTF' },
     ];
 
     this.container.innerHTML = `
       <div class="all-tools-page-container">
         <!-- Page Header Block -->
-        <div class="home-header" style="margin-bottom: 24px;">
-          <div class="home-header-row">
-            <div class="home-title-block">
-              <h1 class="home-title">All PDF Tools</h1>
-              <p class="home-subtitle">
-                Complete catalog of 30 client-side document utilities. Search or filter by operation type.
-              </p>
+        <div class="ilove-hero-section" style="padding: 24px 0 32px;">
+          <h1 class="ilove-hero-title" style="font-size: 2.2rem;">All PDF Tools</h1>
+          <p class="ilove-hero-subtitle">
+            Explore all 30 online PDF and document tools. Fast, secure, and 100% free.
+          </p>
+
+          <!-- Command Bar: Search & Category Filter Tabs -->
+          <div class="ilove-command-bar">
+            <div class="ilove-search-box">
+              ${ICONS['search']}
+              <input 
+                type="text" 
+                id="tools-search-input" 
+                placeholder="Search tools... (e.g. merge, compress, word, jpg, ocr, watermark, protect)" 
+                value="${this.searchQuery}"
+                autocomplete="off"
+                aria-label="Search all tools"
+              />
+              ${
+                this.searchQuery
+                  ? `<button type="button" id="tools-search-clear" class="search-clear-btn" title="Clear Search">${ICONS['close']}</button>`
+                  : ''
+              }
             </div>
-            <div class="home-quick-actions">
-              <span class="font-mono" style="font-size: 0.8125rem; color: var(--pra-text-muted);">
-                30 utilities active
-              </span>
+
+            <div class="ilove-category-tabs" role="tablist" aria-label="Tool Categories">
+              ${filterCategories
+                .map(
+                  (cat) => `
+                <button 
+                  type="button" 
+                  class="ilove-cat-tab ${this.currentCategory === cat.key ? 'active' : ''}" 
+                  data-cat="${cat.key}"
+                  role="tab"
+                  aria-selected="${this.currentCategory === cat.key ? 'true' : 'false'}"
+                >
+                  ${cat.label}
+                </button>
+              `
+                )
+                .join('')}
             </div>
           </div>
         </div>
 
-        <!-- Command Bar: Search & Category Filter Tabs -->
-        <section class="command-bar" style="margin-bottom: 24px;">
-          <div class="search-input-box">
-            ${ICONS['search']}
-            <input 
-              type="text" 
-              id="tools-search-input" 
-              placeholder="Search tools... (e.g. merge, compress, word, jpg, ocr, watermark, protect)" 
-              value="${this.searchQuery}"
-              autocomplete="off"
-              aria-label="Search all tools"
-            />
-            ${
-              this.searchQuery
-                ? `<button type="button" id="tools-search-clear" class="search-clear-btn" title="Clear Search">${ICONS['close']}</button>`
-                : ''
-            }
-          </div>
-
-          <div class="category-filter-chips" role="tablist" aria-label="Tool Categories">
-            ${filterCategories
-              .map(
-                (cat) => `
-              <button 
-                type="button" 
-                class="filter-chip ${this.currentCategory === cat.key ? 'active' : ''}" 
-                data-cat="${cat.key}"
-                role="tab"
-                aria-selected="${this.currentCategory === cat.key ? 'true' : 'false'}"
-              >
-                ${cat.label}
-              </button>
-            `
-              )
-              .join('')}
-          </div>
-        </section>
-
         <!-- Catalog Header Info -->
-        <div class="tool-group-header" style="margin-bottom: 14px;">
-          <h2 class="tool-group-title" id="catalog-section-title">
+        <div class="ilove-group-header" style="margin-bottom: 20px;">
+          <h2 class="ilove-group-title" id="catalog-section-title">
             ${this.getCategoryTitle()}
           </h2>
-          <span class="tool-group-count font-mono" id="catalog-count-badge">
+          <span class="ilove-group-badge font-mono" id="catalog-count-badge">
             Showing ${this.getFilteredTools().length} of ${TOOLS_REGISTRY.length} tools
           </span>
         </div>
 
-        <!-- 30 Tools Directory Grid -->
-        <div class="tools-directory-grid" id="tools-grid-container">
-          ${this.getFilteredTools().map(renderToolCard).join('')}
+        <!-- Catalog Grid -->
+        <div class="ilove-card-grid" id="catalog-tools-grid">
+          ${this.renderToolsGrid()}
         </div>
       </div>
     `;
@@ -108,21 +98,50 @@ export class AllToolsPage {
     this.bindEvents();
   }
 
+  private renderToolsGrid(): string {
+    const filtered = this.getFilteredTools();
+
+    if (filtered.length === 0) {
+      return `
+        <div class="directory-empty-state" style="grid-column: 1 / -1;">
+          <div class="empty-icon-circle">${ICONS['alert-triangle']}</div>
+          <h3>No matching tools found</h3>
+          <p>No tools matched "${this.searchQuery}". Try different keywords or reset your filters.</p>
+          <button type="button" class="btn btn-secondary btn-sm" id="catalog-reset-search-btn">
+            Reset Filters & Show All 30 Tools
+          </button>
+        </div>
+      `;
+    }
+
+    return filtered.map(renderToolCard).join('');
+  }
+
   private getCategoryTitle(): string {
-    if (this.currentCategory === 'all') return 'Complete Tool Catalog (30 Tools)';
     return (CATEGORY_LABELS as any)[this.currentCategory] || 'Tools';
+  }
+
+  private getFilteredTools(): ToolDefinition[] {
+    return TOOLS_REGISTRY.filter((tool) => {
+      const matchesCategory = this.currentCategory === 'all' || tool.category === this.currentCategory;
+      const q = this.searchQuery.toLowerCase();
+      const matchesSearch =
+        !q ||
+        tool.title.toLowerCase().includes(q) ||
+        tool.description.toLowerCase().includes(q) ||
+        tool.acceptedExtensions.some((ext) => ext.toLowerCase().includes(q));
+
+      return matchesCategory && matchesSearch;
+    });
   }
 
   private bindEvents(): void {
     const searchInput = this.container.querySelector('#tools-search-input') as HTMLInputElement;
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
-        this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase().trim();
-        this.updateGrid();
+        this.searchQuery = (e.target as HTMLInputElement).value.trim();
+        this.updateView();
       });
-      if (window.location.hash.includes('focus-search')) {
-        setTimeout(() => searchInput.focus(), 100);
-      }
     }
 
     const clearBtn = this.container.querySelector('#tools-search-clear');
@@ -130,78 +149,51 @@ export class AllToolsPage {
       clearBtn.addEventListener('click', () => {
         this.searchQuery = '';
         if (searchInput) searchInput.value = '';
-        this.updateGrid();
+        this.updateView();
       });
     }
 
-    const chips = this.container.querySelectorAll('.filter-chip');
-    chips.forEach((chip) => {
+    const catChips = this.container.querySelectorAll('.ilove-cat-tab');
+    catChips.forEach((chip) => {
       chip.addEventListener('click', () => {
-        chips.forEach((c) => {
+        const cat = (chip as HTMLElement).dataset.cat || 'all';
+        this.currentCategory = cat;
+        catChips.forEach((c) => {
           c.classList.remove('active');
           c.setAttribute('aria-selected', 'false');
         });
         chip.classList.add('active');
         chip.setAttribute('aria-selected', 'true');
-        this.currentCategory = (chip as HTMLElement).dataset.cat || 'all';
-        this.updateGrid();
+        this.updateView();
       });
     });
+
+    const resetBtn = this.container.querySelector('#catalog-reset-search-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.searchQuery = '';
+        this.currentCategory = 'all';
+        this.render();
+      });
+    }
   }
 
-  private getFilteredTools(): ToolDefinition[] {
-    return TOOLS_REGISTRY.filter((tool) => {
-      const matchesCategory = this.currentCategory === 'all' || tool.category === this.currentCategory;
-      const matchesSearch =
-        !this.searchQuery ||
-        tool.title.toLowerCase().includes(this.searchQuery) ||
-        tool.description.toLowerCase().includes(this.searchQuery) ||
-        tool.acceptedExtensions.some((ext) => ext.toLowerCase().includes(this.searchQuery));
-
-      return matchesCategory && matchesSearch;
-    });
-  }
-
-  private updateGrid(): void {
-    const gridEl = this.container.querySelector('#tools-grid-container');
-    const countBadge = this.container.querySelector('#catalog-count-badge');
+  private updateView(): void {
+    const gridEl = this.container.querySelector('#catalog-tools-grid');
     const titleEl = this.container.querySelector('#catalog-section-title');
-    const filtered = this.getFilteredTools();
+    const badgeEl = this.container.querySelector('#catalog-count-badge');
 
-    if (titleEl) {
-      titleEl.textContent = this.getCategoryTitle();
-    }
+    if (gridEl) gridEl.innerHTML = this.renderToolsGrid();
+    if (titleEl) titleEl.textContent = this.searchQuery ? `Search Results: "${this.searchQuery}"` : this.getCategoryTitle();
+    if (badgeEl) badgeEl.textContent = `Showing ${this.getFilteredTools().length} of ${TOOLS_REGISTRY.length} tools`;
 
-    if (gridEl) {
-      if (filtered.length === 0) {
-        gridEl.innerHTML = `
-          <div style="grid-column: 1 / -1; padding: 48px 24px; text-align: center; background-color: var(--pra-bg-surface); border: 1px solid var(--pra-border); border-radius: var(--pra-radius-md);">
-            <div style="color: var(--pra-text-muted); margin-bottom: 8px;">${ICONS['search']}</div>
-            <h3 style="font-size: 0.9375rem; color: var(--pra-text-primary); margin-bottom: 4px;">No tools found</h3>
-            <p style="font-size: 0.8125rem; color: var(--pra-text-secondary); margin-bottom: 16px;">
-              We couldn't find any tool matching "${this.searchQuery}". Try another keyword or reset filters.
-            </p>
-            <button type="button" class="btn btn-secondary btn-sm" id="reset-search-btn">
-              Reset Filters & View All 30 Tools
-            </button>
-          </div>
-        `;
-
-        const resetBtn = gridEl.querySelector('#reset-search-btn');
-        if (resetBtn) {
-          resetBtn.addEventListener('click', () => {
-            this.searchQuery = '';
-            this.currentCategory = 'all';
-            this.render();
-          });
-        }
-      } else {
-        gridEl.innerHTML = filtered.map(renderToolCard).join('');
-      }
-    }
-
-    if (countBadge) {
-      countBadge.textContent = `Showing ${filtered.length} of ${TOOLS_REGISTRY.length} tools`;
+    const resetBtn = this.container.querySelector('#catalog-reset-search-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.searchQuery = '';
+        this.currentCategory = 'all';
+        this.render();
+      });
     }
   }
 }
