@@ -108,7 +108,12 @@ export default {
     // =========================================================================
     // 1. PRODUCTION HEALTH ROUTE: GET /api/v1/cf/health
     // =========================================================================
-    if (url.pathname === '/api/v1/cf/health' && request.method === 'GET') {
+    if (
+      (url.pathname === '/api/v1/cf/health' ||
+        url.pathname === '/api/v1/health' ||
+        url.pathname === '/api/health') &&
+      request.method === 'GET'
+    ) {
       return jsonResponse({
         status: 'healthy',
         runtime: 'Cloudflare Worker (workerd)',
@@ -422,7 +427,7 @@ export default {
           return new Response(result.outputBuffer as unknown as BodyInit, {
             status: 200,
             headers: {
-              'Content-Type': 'application/pdf',
+              'Content-Type': result.mimeType || 'application/pdf',
               'Content-Disposition': `attachment; filename="${result.outputFileName}"`,
               'X-Request-Id': requestId,
               'X-Execution-Time-Ms': String(durationMs),

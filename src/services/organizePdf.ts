@@ -203,7 +203,7 @@ export async function splitPdf(
   if (!check.valid) throw new Error(check.error);
 
   options.onProgress?.(5, 'Validating documents…');
-  const baseName = file.name.replace(/\.[^/.]+$/, '');
+  const baseName = file.name.replace(/\.[^/.]+$/, '').trim() || 'document';
 
   // Try Worker first
   const formData = new FormData();
@@ -215,7 +215,7 @@ export async function splitPdf(
       mode: options.mode,
       rangeString: options.rangeString,
       everyN: options.everyN,
-      outputFileName: `${baseName}_split`,
+      outputFileName: baseName,
     })
   );
 
@@ -234,8 +234,22 @@ export async function splitPdf(
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      const isZip = json.mimeType === 'application/zip' || !!json.metadata?.isZip;
-      const filename = json.outputFileName || (isZip ? `${baseName}_split.zip` : `${baseName}_split.pdf`);
+      // Check whether response is ZIP or PDF based on mimeType, metadata, or magic bytes
+      const isZip =
+        json.mimeType === 'application/zip' ||
+        !!json.metadata?.isZip ||
+        (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b);
+
+      let filename = json.outputFileName || '';
+      if (isZip) {
+        if (!filename.toLowerCase().endsWith('.zip')) {
+          filename = `${filename.replace(/\.pdf$/i, '') || `${baseName}_split`}.zip`;
+        }
+      } else {
+        if (!filename.toLowerCase().endsWith('.pdf')) {
+          filename = `${filename.replace(/\.zip$/i, '') || `${baseName}_split`}.pdf`;
+        }
+      }
 
       options.onProgress?.(100, 'Completed successfully!');
       return {
@@ -312,7 +326,7 @@ export async function splitPdf(
       return {
         isZip: false,
         data: outBytes,
-        filename: `${baseName}_part_1.pdf`,
+        filename: `${baseName}_split.pdf`,
         partsCount: 1,
       };
     }

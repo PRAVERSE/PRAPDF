@@ -17,6 +17,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { ResultCard } from '../components/ResultCard';
 import { ICONS, getToolIcon } from '../components/icons';
 import { formatBytes } from '../services/core/fileValidator';
+import { consumeStagedFile } from '../services/core/cleanup';
 import {
   renderDocumentPages,
   renderPageThumbnail,
@@ -292,6 +293,16 @@ export class ToolPage {
 
     this.progressBar = new ProgressBar('tp-progress-container');
     this.resultCard = new ResultCard('tp-result-container');
+
+    // Ephemeral document staging (auto-preload document from previous tool workflow)
+    const staged = consumeStagedFile();
+    if (staged && this.tool.acceptedExtensions.some((ext) => staged.name.toLowerCase().endsWith(ext.toLowerCase()))) {
+      this.selectedFiles = [staged];
+      this.dropzone.setFiles([staged]);
+      setTimeout(() => {
+        this.transitionToWorkspace();
+      }, 50);
+    }
   }
 
   /**
@@ -317,15 +328,18 @@ export class ToolPage {
     const selectionStage = this.container.querySelector('#tp-selection-stage') as HTMLElement;
     const workspaceContainer = this.container.querySelector('#tp-workspace-container') as HTMLElement;
     const heroHeader = this.container.querySelector('#tp-hero-header') as HTMLElement;
+    const resultContainer = this.container.querySelector('#tp-result-container') as HTMLElement;
 
     if (selectionStage) selectionStage.style.display = 'block';
     if (workspaceContainer) workspaceContainer.style.display = 'none';
     if (heroHeader) heroHeader.style.display = 'block';
+    if (resultContainer) resultContainer.style.display = 'none';
 
     this.pageThumbnails = [];
     this.multiFileItems = [];
     this.selectedFiles = [];
     this.dropzone.clearFiles();
+    this.resultCard.hide();
   }
 
   private updateSidebarMeta(): void {
@@ -1022,7 +1036,7 @@ export class ToolPage {
               : `<div class="watermark-blank-paper">Page 1</div>`
           }
           <div class="pagenum-overlay-tag pos-${this.livePageNumPosition}" id="live-pagenum-tag">
-            Page 1 of 12
+            1
           </div>
         </div>
         <div class="watermark-live-hint">
@@ -1044,26 +1058,23 @@ export class ToolPage {
 
     const updateTag = () => {
       if (!tag) return;
-      const fmt = fmtSelect?.value || 'Page n of total';
+      const fmt = fmtSelect?.value || '{n}';
       const num = parseInt(startNumInput?.value || '1', 10) || 1;
       const total = 12;
-      let text = `Page ${num} of ${total}`;
-      switch (fmt) {
-        case 'Page n':
-          text = `Page ${num}`;
-          break;
-        case 'n of total':
-          text = `${num} of ${total}`;
-          break;
-        case 'n/total':
-          text = `${num} / ${total}`;
-          break;
-        case 'n':
-          text = `${num}`;
-          break;
-        default:
-          text = `Page ${num} of ${total}`;
-          break;
+      let text = String(num);
+
+      if (fmt === '{n}' || fmt === 'n') {
+        text = String(num);
+      } else if (fmt.includes('{n}') || fmt.includes('{total}')) {
+        text = fmt.replace(/\{n\}/g, String(num)).replace(/\{total\}/g, String(total));
+      } else if (fmt === 'Page n') {
+        text = `Page ${num}`;
+      } else if (fmt === 'Page n of total') {
+        text = `Page ${num} of ${total}`;
+      } else if (fmt === 'n of total') {
+        text = `${num} of ${total}`;
+      } else if (fmt === 'n/total') {
+        text = `${num} / ${total}`;
       }
       tag.textContent = text;
       const sz = parseInt(fontSizeInput?.value || '10', 10) || 10;
@@ -1765,11 +1776,11 @@ This text will be formatted and paginated into a clean PDF document.
             <div class="form-group">
               <label class="form-label">Format Style</label>
               <select class="form-select" id="opt-page-num-fmt">
-                <option value="Page n of total" selected>Page {n} of {total}</option>
-                <option value="Page n">Page {n}</option>
-                <option value="n of total">{n} of {total}</option>
-                <option value="n/total">{n} / {total}</option>
-                <option value="n">Numbers Only ({n})</option>
+                <option value="{n}" selected>Simple Number (1, 2, 3...)</option>
+                <option value="Page {n}">Page {n}</option>
+                <option value="{n} of {total}">{n} of {total}</option>
+                <option value="Page {n} of {total}">Page {n} of {total}</option>
+                <option value="{n} / {total}">{n} / {total}</option>
               </select>
             </div>
 
@@ -2462,7 +2473,7 @@ This text will be formatted and paginated into a clean PDF document.
       // 23. Add Page Numbers
       case 'add-page-numbers': {
         const pos = (document.getElementById('opt-page-num-pos') as HTMLSelectElement)?.value as any || 'bottom-center';
-        const fmt = (document.getElementById('opt-page-num-fmt') as HTMLSelectElement)?.value as any || 'Page n of total';
+        const fmt = (document.getElementById('opt-page-num-fmt') as HTMLSelectElement)?.value as any || '{n}';
         const startNumber = parseInt((document.getElementById('opt-page-num-start-num') as HTMLInputElement)?.value || '1', 10) || 1;
         const startPage = parseInt((document.getElementById('opt-page-num-start-page') as HTMLInputElement)?.value || '1', 10) || 1;
         const font = (document.getElementById('opt-page-num-font') as HTMLSelectElement)?.value as any || 'Helvetica';

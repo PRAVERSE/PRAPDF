@@ -24,6 +24,8 @@ import {
 } from '../src/services/organizePdf';
 import { addPageNumbersToPdf } from '../src/services/annotatePdf';
 import { convertPdfToText } from '../src/services/convertFromPdf';
+import { processAddPageNumbersWorker } from '../src/worker/engines/addPageNumbers';
+import { ResultCard, renderResultCardHtml } from '../src/components/ResultCard';
 
 /**
  * Helper to build an in-memory test PDF with specific page count and text on each page
@@ -221,6 +223,28 @@ describe('PRA PDF — Service 3: Extract PDF Text', () => {
 });
 
 describe('PRA PDF — Service 4: Add Page Numbers', () => {
+  it('applies default simple numbers without "Page" or "of total"', async () => {
+    const sampleBytes = await createSamplePdf(3);
+    const file = toFile(sampleBytes, 'numbered_default.pdf');
+
+    // Call without format option — must default to {n}
+    const numberedBytes = await addPageNumbersToPdf(file, {
+      position: 'bottom-center',
+      startNumber: 1,
+    });
+
+    const doc = await PDFDocument.load(numberedBytes);
+    expect(doc.getPageCount()).toBe(3);
+
+    // Call worker directly without format — must default to {n}
+    const workerResult = await processAddPageNumbersWorker(sampleBytes, {
+      position: 'bottom-center',
+    });
+    expect(workerResult.mimeType).toBe('application/pdf');
+    const workerDoc = await PDFDocument.load(workerResult.outputBuffer);
+    expect(workerDoc.getPageCount()).toBe(3);
+  });
+
   it('applies page numbers with custom position, format, starting number, and font', async () => {
     const sampleBytes = await createSamplePdf(3);
     const file = toFile(sampleBytes, 'book.pdf');
@@ -253,14 +277,13 @@ describe('PRA PDF — Service 4: Add Page Numbers', () => {
     expect(doc.getPageCount()).toBe(4);
   });
 
-  it('executes add-page-numbers via Cloudflare Worker route /api/v1/cf/process', async () => {
+  it('executes add-page-numbers via Cloudflare Worker route /api/v1/cf/process with default {n}', async () => {
     const sampleBytes = await createSamplePdf(2);
     const form = new FormData();
     form.append('service', 'add-page-numbers');
     form.append('file', new Blob([sampleBytes as any]), 'doc.pdf');
     form.append('options', JSON.stringify({
       position: 'bottom-right',
-      format: '{n} / {total}',
       startNumber: 1,
     }));
 
@@ -273,6 +296,10 @@ describe('PRA PDF — Service 4: Add Page Numbers', () => {
     expect(json.metadata.position).toBe('bottom-right');
 
     const outputPdf = Buffer.from(json.outputBase64, 'base64');
+    expect(outputPdf[0]).toBe(0x25); // %
+    expect(outputPdf[1]).toBe(0x50); // P
+    expect(outputPdf[2]).toBe(0x44); // D
+    expect(outputPdf[3]).toBe(0x46); // F
     const doc = await PDFDocument.load(outputPdf);
     expect(doc.getPageCount()).toBe(2);
   });
@@ -338,49 +365,64 @@ describe('PRA PDF — Service 5: Merge PDF', () => {
 });
 
 describe('PRA PDF — Service 6: Split PDF', () => {
-  it('splits single range into a single valid PDF', async () => {
+  it('splits single range into a single valid PDF with correct .pdf extension and %PDF header', async () => {
     const sampleBytes = await createSamplePdf(6);
     const file = toFile(sampleBytes, 'full.pdf');
 
     const result = await splitPdf(file, { mode: 'ranges', rangeString: '2-4' });
-    expect(result.filename).toBe('full_part_1.pdf');
-    expect(result.data).toBeInstanceOf(Uint8Array);
+    expect(result.filename).toBe('full_split.pdf');
+    expect(result.filename.toLowerCase().endsWith('.pdf')).toBe(true);
+    expect(result.isZip).toBe(false);
 
-    const doc = await PDFDocument.load(result.data as Uint8Array);
+    const rawBytes = result.data instanceof Uint8Array ? result.data : new Uint8Array(await (result.data as Blob).arrayBuffer());
+    expect(rawBytes[0]).toBe(0x25); // %
+    expect(rawBytes[1]).toBe(0x50); // P
+    expect(rawBytes[2]).toBe(0x44); // D
+    expect(rawBytes[3]).toBe(0x46); // F
+
+    const doc = await PDFDocument.load(rawBytes);
     expect(doc.getPageCount()).toBe(3);
   });
 
-  it('splits multiple ranges into a valid ZIP containing correctly partitioned PDFs', async () => {
+  it('splits multiple ranges into a valid ZIP containing correctly partitioned and named PDFs', async () => {
     const sampleBytes = await createSamplePdf(6);
     const file = toFile(sampleBytes, 'manual.pdf');
 
     const result = await splitPdf(file, { mode: 'ranges', rangeString: '1-2, 4-6' });
     expect(result.filename).toBe('manual_split_ranges.zip');
-    expect(result.data).toBeDefined();
+    expect(result.filename.toLowerCase().endsWith('.zip')).toBe(true);
+    expect(result.isZip).toBe(true);
 
-    const zip = await JSZip.loadAsync(result.data as any);
+    const rawData = result.data instanceof Blob ? await (result.data as Blob).arrayBuffer() : result.data;
+    const zip = await JSZip.loadAsync(rawData as any);
     const fileNames = Object.keys(zip.files).filter((n) => n.endsWith('.pdf'));
     expect(fileNames.length).toBe(2);
 
-    // Verify first part
+    // Verify first part has %PDF header
     const part1Bytes = await zip.files[fileNames[0]].async('uint8array');
+    expect(part1Bytes[0]).toBe(0x25); // %
+    expect(part1Bytes[1]).toBe(0x50); // P
     const doc1 = await PDFDocument.load(part1Bytes);
     expect(doc1.getPageCount()).toBe(2); // 1-2
 
-    // Verify second part
+    // Verify second part has %PDF header
     const part2Bytes = await zip.files[fileNames[1]].async('uint8array');
+    expect(part2Bytes[0]).toBe(0x25);
     const doc2 = await PDFDocument.load(part2Bytes);
     expect(doc2.getPageCount()).toBe(3); // 4-6
   });
 
-  it('splits every N pages into equal parts packaged in a ZIP', async () => {
+  it('splits every N pages into equal parts packaged in a ZIP with valid PDFs', async () => {
     const sampleBytes = await createSamplePdf(5);
     const file = toFile(sampleBytes, 'chunks.pdf');
 
     const result = await splitPdf(file, { mode: 'every_n', everyN: 2 });
     expect(result.filename).toBe('chunks_split_every_2_pages.zip');
+    expect(result.filename.toLowerCase().endsWith('.zip')).toBe(true);
+    expect(result.isZip).toBe(true);
 
-    const zip = await JSZip.loadAsync(result.data as Uint8Array);
+    const rawData = result.data instanceof Blob ? await (result.data as Blob).arrayBuffer() : result.data;
+    const zip = await JSZip.loadAsync(rawData as any);
     const fileNames = Object.keys(zip.files).filter((n) => n.endsWith('.pdf'));
     expect(fileNames.length).toBe(3); // 2 + 2 + 1 = 5
 
@@ -395,36 +437,125 @@ describe('PRA PDF — Service 6: Split PDF', () => {
 
     const result = await splitPdf(file, { mode: 'all' });
     expect(result.filename).toBe('singles_split_all_pages.zip');
+    expect(result.filename.toLowerCase().endsWith('.zip')).toBe(true);
 
-    const zip = await JSZip.loadAsync(result.data as Uint8Array);
+    const rawData = result.data instanceof Blob ? await (result.data as Blob).arrayBuffer() : result.data;
+    const zip = await JSZip.loadAsync(rawData as any);
     const fileNames = Object.keys(zip.files).filter((n) => n.endsWith('.pdf'));
     expect(fileNames.length).toBe(3);
 
     for (const name of fileNames) {
       const bytes = await zip.files[name].async('uint8array');
+      expect(bytes[0]).toBe(0x25);
       const doc = await PDFDocument.load(bytes);
       expect(doc.getPageCount()).toBe(1);
     }
   });
 
-  it('executes split-pdf via Cloudflare Worker route /api/v1/cf/process', async () => {
+  it('executes split-pdf via Cloudflare Worker route /api/v1/cf/process and returns valid MIME types', async () => {
     const sampleBytes = await createSamplePdf(4);
-    const form = new FormData();
-    form.append('service', 'split-pdf');
-    form.append('file', new Blob([sampleBytes as any]), 'source.pdf');
-    form.append('options', JSON.stringify({ mode: 'every_n', everyN: 2 }));
 
-    const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
-    const res = await worker.fetch(req, {});
-    expect(res.status).toBe(200);
+    // 1. Multi-part split returns application/zip
+    const formZip = new FormData();
+    formZip.append('service', 'split-pdf');
+    formZip.append('file', new Blob([sampleBytes as any]), 'source.pdf');
+    formZip.append('options', JSON.stringify({ mode: 'every_n', everyN: 2 }));
 
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.metadata.outputPartsCount).toBe(2);
+    const reqZip = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: formZip });
+    const resZip = await worker.fetch(reqZip, {});
+    expect(resZip.status).toBe(200);
 
-    const zipBytes = Buffer.from(json.outputBase64, 'base64');
+    const jsonZip = await resZip.json();
+    expect(jsonZip.success).toBe(true);
+    expect(jsonZip.mimeType).toBe('application/zip');
+    expect(jsonZip.outputFileName.endsWith('.zip')).toBe(true);
+
+    const zipBytes = Buffer.from(jsonZip.outputBase64, 'base64');
+    expect(zipBytes[0]).toBe(0x50); // P
+    expect(zipBytes[1]).toBe(0x4b); // K
     const zip = await JSZip.loadAsync(zipBytes);
     const pdfs = Object.keys(zip.files).filter((n) => n.endsWith('.pdf'));
     expect(pdfs.length).toBe(2);
+
+    // 2. Single range split returns application/pdf
+    const formPdf = new FormData();
+    formPdf.append('service', 'split-pdf');
+    formPdf.append('file', new Blob([sampleBytes as any]), 'source.pdf');
+    formPdf.append('options', JSON.stringify({ mode: 'ranges', rangeString: '1-2' }));
+
+    const reqPdf = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: formPdf });
+    const resPdf = await worker.fetch(reqPdf, {});
+    expect(resPdf.status).toBe(200);
+
+    const jsonPdf = await resPdf.json();
+    expect(jsonPdf.success).toBe(true);
+    expect(jsonPdf.mimeType).toBe('application/pdf');
+    expect(jsonPdf.outputFileName.endsWith('.pdf')).toBe(true);
+
+    const pdfBytes = Buffer.from(jsonPdf.outputBase64, 'base64');
+    expect(pdfBytes[0]).toBe(0x25); // %
+    expect(pdfBytes[1]).toBe(0x50); // P
+    const singleDoc = await PDFDocument.load(pdfBytes);
+    expect(singleDoc.getPageCount()).toBe(2);
+  });
+});
+
+describe('PRA PDF — Standardized Universal Completion Screen', () => {
+  it('renders standardized dark completion screen with green check icon and prominent green download button', () => {
+    let resetCalled = false;
+    const html = renderResultCardHtml({
+      filename: 'document_converted.pdf',
+      data: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      toolId: 'png-to-pdf',
+      toolTitle: 'PNG to PDF',
+      isBrowserOnly: true,
+      onReset: () => {
+        resetCalled = true;
+      },
+    });
+
+    // Check Success Header
+    expect(html).toContain('class="result-main-title">Your PDF is ready</h2>');
+    expect(html).toContain('Converted privately in your browser. Nothing was uploaded.');
+    expect(html).toContain('class="result-check-circle"');
+
+    // Check Output File Card
+    expect(html).toContain('class="result-output-card"');
+    expect(html).toContain('class="output-file-name" title="document_converted.pdf">document_converted.pdf</span>');
+    expect(html).toContain('class="output-file-type-tag">PDF Document</span>');
+
+    // Check Green Download Button
+    expect(html).toContain('class="btn-download-success"');
+    expect(html).toContain('Download document_converted.pdf');
+
+    // Check Secondary Actions
+    expect(html).toContain('id="rc-reset-btn"');
+    expect(html).toContain('Convert another file');
+    expect(html).toContain('id="rc-all-tools-btn"');
+    expect(html).toContain('href="#/tools"');
+    expect(html).toContain('All PDF tools');
+
+    // Check WHAT'S NEXT grid with 4 cards
+    expect(html).toContain('WHAT\'S NEXT');
+    expect(html).toContain('class="whats-next-grid"');
+    const cardMatches = html.match(/class="whats-next-card"/g);
+    expect(cardMatches?.length).toBe(4);
+  });
+
+  it('renders honest server-side edge message when isBrowserOnly is false and ZIP heading for archives', () => {
+    const html = renderResultCardHtml({
+      filename: 'split_pages.zip',
+      data: new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
+      toolId: 'split-pdf',
+      toolTitle: 'Split PDF',
+      isBrowserOnly: false,
+      onReset: () => {},
+    });
+
+    expect(html).toContain('class="result-main-title">Your ZIP archive is ready</h2>');
+    expect(html).toContain('Processed securely via Cloudflare edge.');
+    expect(html).toContain('class="output-file-type-tag">ZIP Archive</span>');
+    expect(html).toContain('Download split_pages.zip');
+    expect(html).toContain('is-zip');
   });
 });

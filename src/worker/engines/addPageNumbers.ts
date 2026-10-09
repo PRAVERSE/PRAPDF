@@ -69,7 +69,7 @@ export async function processAddPageNumbersWorker(
   }
 
   const position = options?.position || 'bottom-center';
-  const formatTemplate = options?.format || 'Page {n} of {total}';
+  const formatTemplate = options?.format || '{n}';
   const startNumberValue = options?.startNumber ?? 1;
   const startFromPage = Math.max(1, options?.startFromPage ?? 1);
   const endAtPage = Math.min(totalPages, options?.endAtPage ?? totalPages);
@@ -106,29 +106,24 @@ export async function processAddPageNumbersWorker(
     const currentNumber = startNumberValue + numberedCount;
 
     // Format page number string:
-    // Support {n}, {total}, Page X of Y, Page X, X / Y, etc.
+    // Default must be simple number {n} (1, 2, 3...). Never prepend "Page " or append " of X" unless explicitly formatted.
     let pageText = formatTemplate;
-    if (pageText.includes('{n}') || pageText.includes('{total}')) {
+    if (pageText === '{n}' || pageText === 'n') {
+      pageText = String(currentNumber);
+    } else if (pageText.includes('{n}') || pageText.includes('{total}')) {
       pageText = pageText
         .replace(/\{n\}/g, String(currentNumber))
         .replace(/\{total\}/g, String(pagesCountToNumber + startNumberValue - 1));
+    } else if (formatTemplate === 'Page n of total') {
+      pageText = `Page ${currentNumber} of ${pagesCountToNumber + startNumberValue - 1}`;
+    } else if (formatTemplate === 'Page n') {
+      pageText = `Page ${currentNumber}`;
+    } else if (formatTemplate === 'n/total' || formatTemplate === 'n / total') {
+      pageText = `${currentNumber} / ${pagesCountToNumber + startNumberValue - 1}`;
+    } else if (formatTemplate === 'n of total') {
+      pageText = `${currentNumber} of ${pagesCountToNumber + startNumberValue - 1}`;
     } else {
-      // Handle legacy format strings:
-      if (formatTemplate === 'Page n of total') {
-        pageText = `Page ${currentNumber} of ${pagesCountToNumber + startNumberValue - 1}`;
-      } else if (formatTemplate === 'Page n') {
-        pageText = `Page ${currentNumber}`;
-      } else if (formatTemplate === 'n/total' || formatTemplate === 'n / total') {
-        pageText = `${currentNumber} / ${pagesCountToNumber + startNumberValue - 1}`;
-      } else if (formatTemplate === 'n of total') {
-        pageText = `${currentNumber} of ${pagesCountToNumber + startNumberValue - 1}`;
-      } else if (formatTemplate === 'n') {
-        pageText = `${currentNumber}`;
-      } else {
-        pageText = formatTemplate
-          .replace(/\bn\b/g, String(currentNumber))
-          .replace(/\btotal\b/g, String(pagesCountToNumber + startNumberValue - 1));
-      }
+      pageText = String(currentNumber);
     }
 
     const textWidth = font.widthOfTextAtSize(pageText, fontSize);
