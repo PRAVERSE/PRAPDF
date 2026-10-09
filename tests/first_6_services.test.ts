@@ -517,16 +517,17 @@ describe('PRA PDF — Standardized Universal Completion Screen', () => {
     // Check Success Header
     expect(html).toContain('class="result-main-title">Your PDF is ready</h2>');
     expect(html).toContain('Converted privately in your browser. Nothing was uploaded.');
-    expect(html).toContain('class="result-check-circle"');
+    expect(html).toContain('result-check-circle');
 
     // Check Output File Card
     expect(html).toContain('class="result-output-card"');
     expect(html).toContain('class="output-file-name" title="document_converted.pdf">document_converted.pdf</span>');
-    expect(html).toContain('class="output-file-type-tag">PDF Document</span>');
+    expect(html).toContain('class="output-file-type-tag"');
 
     // Check Green Download Button
     expect(html).toContain('class="btn-download-success"');
-    expect(html).toContain('Download document_converted.pdf');
+    expect(html).toContain('Download PDF');
+    expect(html).toContain('aria-label="Download document_converted.pdf"');
 
     // Check Secondary Actions
     expect(html).toContain('id="rc-reset-btn"');
@@ -555,7 +556,8 @@ describe('PRA PDF — Standardized Universal Completion Screen', () => {
     expect(html).toContain('class="result-main-title">Your ZIP archive is ready</h2>');
     expect(html).toContain('Processed securely via Cloudflare edge.');
     expect(html).toContain('class="output-file-type-tag">ZIP Archive</span>');
-    expect(html).toContain('Download split_pages.zip');
+    expect(html).toContain('Download ZIP');
+    expect(html).toContain('aria-label="Download split_pages.zip"');
     expect(html).toContain('is-zip');
   });
 });

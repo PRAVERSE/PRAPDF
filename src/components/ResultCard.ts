@@ -33,37 +33,48 @@ export interface ResultCardOptions {
 interface RelatedTool {
   id: string;
   title: string;
-  description: string;
-  icon: string;
+  svgIcon: string;
 }
 
+const GREEN_ICON_COLOR = '#2EE59D';
+
 function getRelatedTools(currentToolId?: string, isZip?: boolean): RelatedTool[] {
-  if (isZip) {
-    return [
-      { id: 'merge-pdf', title: 'Merge PDF', description: 'Combine extracted PDF files into one', icon: '📑' },
-      { id: 'compress-pdf', title: 'Compress PDF', description: 'Reduce document size for fast sharing', icon: '⚡' },
-      { id: 'add-page-numbers', title: 'Add page numbers', description: 'Stamp clean page numbers on pages', icon: '🔢' },
-      { id: 'password-protect-pdf', title: 'Protect with password', description: 'Lock files with AES-256 encryption', icon: '🔒' },
-    ];
-  }
-
-  if (currentToolId === 'extract-pdf-text') {
-    return [
-      { id: 'ocr-pdf', title: 'OCR PDF (Searchable)', description: 'Recognize text from scanned image pages', icon: '🔍' },
-      { id: 'txt-to-pdf', title: 'Text to PDF', description: 'Convert extracted text into a PDF file', icon: '📝' },
-      { id: 'compress-pdf', title: 'Compress PDF', description: 'Optimize PDF document size', icon: '⚡' },
-      { id: 'password-protect-pdf', title: 'Protect with password', description: 'Lock sensitive files with encryption', icon: '🔒' },
-    ];
-  }
-
   const pool: RelatedTool[] = [
-    { id: 'compress-pdf', title: 'Compress this PDF', description: 'Reduce file size for fast email sharing', icon: '⚡' },
-    { id: 'password-protect-pdf', title: 'Protect with password', description: 'Lock with AES-256 military-grade encryption', icon: '🔒' },
-    { id: 'add-page-numbers', title: 'Add page numbers', description: 'Stamp clean page numbers on pages', icon: '🔢' },
-    { id: 'editor', title: 'Open in PDF editor', description: 'Edit text, draw, sign, and annotate pages', icon: '✏️' },
-    { id: 'rotate-pdf', title: 'Rotate PDF', description: 'Rotate pages to proper orientation', icon: '🔄' },
-    { id: 'split-pdf', title: 'Split PDF', description: 'Separate pages or extract custom ranges', icon: '✂️' },
-    { id: 'organize-pdf', title: 'Organize pages', description: 'Reorder, rotate, or delete pages easily', icon: '📑' },
+    {
+      id: 'compress-pdf',
+      title: 'Compress this PDF',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`,
+    },
+    {
+      id: 'password-protect-pdf',
+      title: 'Protect with password',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
+    },
+    {
+      id: 'add-page-numbers',
+      title: 'Add page numbers',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>`,
+    },
+    {
+      id: 'editor',
+      title: 'Open in PDF editor',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`,
+    },
+    {
+      id: 'merge-pdf',
+      title: 'Merge PDF',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+    },
+    {
+      id: 'split-pdf',
+      title: 'Split PDF',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>`,
+    },
+    {
+      id: 'rotate-pdf',
+      title: 'Rotate PDF',
+      svgIcon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${GREEN_ICON_COLOR}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`,
+    },
   ];
 
   return pool.filter((t) => t.id !== currentToolId).slice(0, 4);
@@ -115,10 +126,16 @@ export function renderResultCardHtml(options: ResultCardOptions): string {
   let detailPill = options.operationDetail || '';
   if (!detailPill) {
     if (isZip) detailPill = 'ZIP Archive';
-    else if (isPdf) detailPill = 'PDF Document';
-    else if (isTxt) detailPill = 'Plain Text (.txt)';
+    else if (isPdf) detailPill = 'Combined from PNG';
+    else if (isTxt) detailPill = 'Plain Text';
     else detailPill = 'Ready to save';
   }
+
+  // Download button text
+  const downloadBtnText = isZip ? 'Download ZIP' : isTxt ? 'Download Text' : 'Download PDF';
+
+  const badgeText = isZip ? 'ZIP' : isTxt ? 'TXT' : 'PDF';
+  const badgeClass = isZip ? 'is-zip' : isTxt ? 'is-txt' : 'is-pdf';
 
   const relatedTools = getRelatedTools(options.toolId, isZip);
 
@@ -126,8 +143,8 @@ export function renderResultCardHtml(options: ResultCardOptions): string {
     <div class="ilove-result-view">
       <!-- A. Success Header -->
       <div class="result-celebration-badge">
-        <div class="result-check-circle" aria-label="Success">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <div class="result-check-squircle result-check-circle" aria-label="Success">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2EE59D" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
@@ -136,25 +153,15 @@ export function renderResultCardHtml(options: ResultCardOptions): string {
       <h2 class="result-main-title">${mainHeading}</h2>
       <p class="result-main-subtitle">${supportingText}</p>
 
-      <!-- B. Output File Card -->
+      <!-- B. Output File Card (Dark Professional Theme) -->
       <div class="result-output-card">
         <div class="output-card-file-row">
-          <div class="output-file-icon-badge ${isZip ? 'is-zip' : isTxt ? 'is-txt' : 'is-pdf'}">
-            ${
-              isZip
-                ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>`
-                : isTxt
-                ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
-                : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`
-            }
+          <div class="output-file-badge ${badgeClass}">
+            <span>${badgeText}</span>
           </div>
           <div class="output-file-info-col">
             <span class="output-file-name" title="${options.filename}">${options.filename}</span>
-            <div class="output-file-badges-row">
-              <span class="output-file-size-tag">${sizeDisplay}</span>
-              <span class="output-file-sep">•</span>
-              <span class="output-file-type-tag">${detailPill}</span>
-            </div>
+            <div class="output-file-badges-row">${sizeDisplay} · <span class="output-file-type-tag">${detailPill}</span></div>
           </div>
         </div>
 
@@ -211,51 +218,40 @@ export function renderResultCardHtml(options: ResultCardOptions): string {
             : ''
         }
 
-        <!-- Prominent Green Download Button -->
-        <button type="button" class="btn-download-success" id="rc-download-btn" aria-label="Download generated file">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Prominent Vibrant Green Download Button -->
+        <button type="button" class="btn-download-success" id="rc-download-btn" aria-label="Download ${options.filename}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#062817" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>Download ${options.filename}</span>
+          <span>${downloadBtnText}</span>
         </button>
-      </div>
 
-      <!-- C. Secondary Actions -->
-      <div class="result-secondary-row">
-        <button type="button" class="btn btn-secondary" id="rc-reset-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="1 4 1 10 7 10"></polyline>
-            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-          </svg>
-          <span>Convert another file</span>
-        </button>
+        <!-- Secondary Actions (Inside the card) -->
+        <div class="result-card-secondary-row">
+          <button type="button" class="btn-card-secondary" id="rc-reset-btn">
+            Convert another file
+          </button>
+          <a href="#/tools" class="btn-card-secondary" id="rc-all-tools-btn">
+            All PDF tools
+          </a>
+        </div>
+
         ${
           isTextExtract && hasText
             ? `
-          <button type="button" class="btn btn-secondary" id="rc-copy-text-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            <span id="rc-copy-label">Copy Text</span>
-          </button>
+          <div style="margin-top: 10px;">
+            <button type="button" class="btn-card-secondary" id="rc-copy-text-btn" style="width: 100%;">
+              <span id="rc-copy-label">Copy Text</span>
+            </button>
+          </div>
         `
             : ''
         }
-        <a href="#/tools" class="btn btn-secondary" id="rc-all-tools-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="14" y="14" width="7" height="7"></rect>
-            <rect x="3" y="14" width="7" height="7"></rect>
-          </svg>
-          <span>All PDF tools</span>
-        </a>
       </div>
 
-      <!-- D. WHAT'S NEXT Section -->
+      <!-- C. WHAT'S NEXT Section (Below the card) -->
       <div class="result-next-steps">
         <div class="next-steps-title">WHAT'S NEXT</div>
         <div class="whats-next-grid" id="rc-whats-next-grid">
@@ -263,12 +259,8 @@ export function renderResultCardHtml(options: ResultCardOptions): string {
             .map(
               (tool) => `
             <a href="#/tools/${tool.id}" class="whats-next-card" data-tool-id="${tool.id}">
-              <div class="whats-next-card-top">
-                <span class="whats-next-card-icon">${tool.icon}</span>
-                <span class="whats-next-card-arrow">→</span>
-              </div>
-              <div class="whats-next-card-title">${tool.title}</div>
-              <div class="whats-next-card-desc">${tool.description}</div>
+              <span class="whats-next-icon-wrap">${tool.svgIcon}</span>
+              <span class="whats-next-label">${tool.title}</span>
             </a>
           `
             )
