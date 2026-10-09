@@ -49,14 +49,16 @@ import {
 import {
   mergePdfs,
   splitPdf,
+  organizePdfPages,
   deletePdfPages,
   extractPdfPages,
   rotatePdf,
   cropPdf,
   editPdfMetadata,
+  extractPdfMetadata,
 } from '../services/organizePdf';
 
-import { addPageNumbersToPdf, watermarkPdf } from '../services/annotatePdf';
+import { addPageNumbersToPdf, watermarkPdf, fullPdfEdit } from '../services/annotatePdf';
 import { compressPdf, ocrPdf } from '../services/optimizeAndOcr';
 import { passwordProtectPdf, unlockPdf } from '../services/securityPdf';
 
@@ -84,6 +86,7 @@ export class ToolPage {
   private progressBar!: ProgressBar;
   private resultCard!: ResultCard;
   private selectedFiles: File[] = [];
+  private isProcessing: boolean = false;
 
   // Dual-mode state (File upload vs Direct Editor for HTML, Markdown, TXT)
   private inputMode: 'file' | 'direct' = 'file';
@@ -348,12 +351,27 @@ export class ToolPage {
 
     if (!canvasContent) return;
 
-    // 1. Multi-file tools: Merge PDF, Images to PDF
-    if (this.tool.id === 'merge-pdf' || this.tool.id === 'images-to-pdf') {
-      summaryLabel.textContent = `${this.selectedFiles.length} Document${this.selectedFiles.length > 1 ? 's' : ''} to ${this.tool.id === 'merge-pdf' ? 'Merge' : 'Convert'}`;
+    // 1. Multi-file tools: Merge PDF, Images to PDF, JPG to PDF, PNG to PDF
+    if (
+      this.tool.id === 'merge-pdf' ||
+      this.tool.id === 'images-to-pdf' ||
+      this.tool.id === 'jpg-to-pdf' ||
+      this.tool.id === 'png-to-pdf'
+    ) {
+      const typeLabel =
+        this.tool.id === 'merge-pdf'
+          ? 'Document'
+          : this.tool.id === 'jpg-to-pdf'
+          ? 'JPG Image'
+          : this.tool.id === 'png-to-pdf'
+          ? 'PNG Image'
+          : 'Image';
+      const actionLabel = this.tool.id === 'merge-pdf' ? 'Merge' : 'Convert to PDF';
+
+      summaryLabel.textContent = `${this.selectedFiles.length} ${typeLabel}${this.selectedFiles.length > 1 ? 's' : ''} to ${actionLabel}`;
       toolbarActions.innerHTML = `
         <button type="button" class="btn btn-secondary btn-sm" id="btn-add-more-files">
-          + Add Files
+          + Add ${this.tool.id === 'merge-pdf' ? 'Files' : 'Images'}
         </button>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-sort-files-az" title="Sort files alphabetically">
           Sort A-Z
@@ -439,27 +457,72 @@ export class ToolPage {
 
     // 6. Generic Document Card Preview for single-file tools
     await this.renderStandardDocumentCard();
+
+    // 7. Pre-fill existing metadata if tool is Edit PDF Metadata
+    if (this.tool.id === 'edit-pdf-metadata') {
+      const file = this.selectedFiles[0];
+      if (file) {
+        try {
+          const meta = await extractPdfMetadata(file);
+          const titleInput = this.container.querySelector('#opt-meta-title') as HTMLInputElement;
+          const authorInput = this.container.querySelector('#opt-meta-author') as HTMLInputElement;
+          const subjectInput = this.container.querySelector('#opt-meta-subject') as HTMLInputElement;
+          const keywordsInput = this.container.querySelector('#opt-meta-keywords') as HTMLInputElement;
+          const creatorInput = this.container.querySelector('#opt-meta-creator') as HTMLInputElement;
+          const producerInput = this.container.querySelector('#opt-meta-producer') as HTMLInputElement;
+
+          if (titleInput && meta.title) titleInput.value = meta.title;
+          if (authorInput && meta.author) authorInput.value = meta.author;
+          if (subjectInput && meta.subject) subjectInput.value = meta.subject;
+          if (keywordsInput && meta.keywords) keywordsInput.value = meta.keywords;
+          if (creatorInput && meta.creator) creatorInput.value = meta.creator;
+          if (producerInput && meta.producer) producerInput.value = meta.producer;
+        } catch (e) {
+          console.warn('Could not read existing PDF metadata:', e);
+        }
+      }
+    }
   }
 
   /**
    * Renders multi-file grid for Merge PDF and Images to PDF
    */
+  private updateMultiFileSummary(): void {
+    const summaryLabel = this.container.querySelector('#stage-summary-label') as HTMLElement;
+    if (!summaryLabel) return;
+    const typeLabel =
+      this.tool.id === 'merge-pdf'
+        ? 'Document'
+        : this.tool.id === 'jpg-to-pdf'
+        ? 'JPG Image'
+        : this.tool.id === 'png-to-pdf'
+        ? 'PNG Image'
+        : 'Image';
+    const actionLabel = this.tool.id === 'merge-pdf' ? 'Merge' : 'Convert to PDF';
+    summaryLabel.textContent = `${this.selectedFiles.length} ${typeLabel}${this.selectedFiles.length > 1 ? 's' : ''} to ${actionLabel}`;
+  }
+
+  /**
+   * Renders multi-file grid for Merge PDF, Images to PDF, JPG to PDF, and PNG to PDF
+   */
   private async renderMultiFileGrid(): Promise<void> {
     const canvasContent = this.container.querySelector('#canvas-dynamic-content') as HTMLElement;
     if (!canvasContent) return;
+
+    const isImageTool = ['jpg-to-pdf', 'png-to-pdf', 'images-to-pdf'].includes(this.tool.id);
 
     let cardsHtml = '';
     for (let idx = 0; idx < this.selectedFiles.length; idx++) {
       const file = this.selectedFiles[idx];
       let thumbUrl = '';
 
-      if (file.type.startsWith('image/')) {
+      if (file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp)$/i.test(file.name)) {
         thumbUrl = URL.createObjectURL(file);
       }
 
       cardsHtml += `
-        <div class="ilove-file-card" data-index="${idx}" draggable="true">
-          <div class="file-card-order-badge">${idx + 1}</div>
+        <div class="ilove-file-card" data-index="${idx}" draggable="true" title="Drag to reorder">
+          <div class="file-card-order-badge" title="PDF Page ${idx + 1}">${idx + 1}</div>
           <div class="file-card-preview-box">
             ${
               thumbUrl
@@ -470,14 +533,17 @@ export class ToolPage {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
-                <span class="file-fallback-ext">${file.name.split('.').pop()?.toUpperCase() || 'PDF'}</span>
+                <span class="file-fallback-ext">${file.name.split('.').pop()?.toUpperCase() || 'FILE'}</span>
               </div>
             `
             }
           </div>
           <div class="file-card-info">
             <div class="file-card-name" title="${file.name}">${file.name}</div>
-            <div class="file-card-size">${formatBytes(file.size)}</div>
+            <div class="file-card-size">
+              ${formatBytes(file.size)}
+              <span class="file-card-pages-badge" id="file-pages-badge-${idx}"></span>
+            </div>
           </div>
           <div class="file-card-actions">
             <button type="button" class="file-action-icon move-left" data-index="${idx}" ${idx === 0 ? 'disabled' : ''} title="Move left">
@@ -486,7 +552,7 @@ export class ToolPage {
             <button type="button" class="file-action-icon move-right" data-index="${idx}" ${idx === this.selectedFiles.length - 1 ? 'disabled' : ''} title="Move right">
               →
             </button>
-            <button type="button" class="file-action-icon delete" data-index="${idx}" title="Remove document">
+            <button type="button" class="file-action-icon delete" data-index="${idx}" title="Remove image">
               ✕
             </button>
           </div>
@@ -495,15 +561,33 @@ export class ToolPage {
     }
 
     // Add "+" card at end of grid
+    const addLabel = isImageTool ? 'Add more images' : 'Add more files';
+
     cardsHtml += `
-      <div class="ilove-add-file-tile" id="tile-add-more-files" role="button" tabindex="0">
+      <div class="ilove-add-file-tile" id="tile-add-more-files" role="button" tabindex="0" title="${addLabel}">
         <div class="add-tile-icon">+</div>
-        <div class="add-tile-label">Add more files</div>
+        <div class="add-tile-label">${addLabel}</div>
       </div>
     `;
 
     canvasContent.innerHTML = `<div class="ilove-file-cards-grid">${cardsHtml}</div>`;
     this.bindMultiFileCardActions();
+
+    // Asynchronously resolve and display page counts for PDF files (Merge PDF)
+    if (this.tool.id === 'merge-pdf') {
+      this.selectedFiles.forEach((file, idx) => {
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          file.arrayBuffer().then((buf) => {
+            getPageCountFast(buf).then((pgCount) => {
+              const badge = this.container.querySelector(`#file-pages-badge-${idx}`);
+              if (badge) {
+                badge.textContent = ` • ${pgCount} pg${pgCount > 1 ? 's' : ''}`;
+              }
+            }).catch(() => {});
+          }).catch(() => {});
+        }
+      });
+    }
   }
 
   private bindMultiFileToolbar(): void {
@@ -515,14 +599,18 @@ export class ToolPage {
 
     sortBtn?.addEventListener('click', () => {
       this.selectedFiles.sort((a, b) => a.name.localeCompare(b.name));
+      this.dropzone.setFiles(this.selectedFiles);
       this.renderMultiFileGrid();
       this.updateSidebarMeta();
+      this.updateMultiFileSummary();
     });
 
     reverseBtn?.addEventListener('click', () => {
       this.selectedFiles.reverse();
+      this.dropzone.setFiles(this.selectedFiles);
       this.renderMultiFileGrid();
       this.updateSidebarMeta();
+      this.updateMultiFileSummary();
     });
   }
 
@@ -535,11 +623,13 @@ export class ToolPage {
         e.stopPropagation();
         const idx = parseInt((btn as HTMLElement).dataset.index || '0', 10);
         this.selectedFiles.splice(idx, 1);
+        this.dropzone.setFiles(this.selectedFiles);
         if (this.selectedFiles.length === 0) {
           this.transitionToSelection();
         } else {
           this.renderMultiFileGrid();
           this.updateSidebarMeta();
+          this.updateMultiFileSummary();
         }
       });
     });
@@ -551,7 +641,9 @@ export class ToolPage {
         if (idx > 0) {
           const item = this.selectedFiles.splice(idx, 1)[0];
           this.selectedFiles.splice(idx - 1, 0, item);
+          this.dropzone.setFiles(this.selectedFiles);
           this.renderMultiFileGrid();
+          this.updateSidebarMeta();
         }
       });
     });
@@ -563,8 +655,56 @@ export class ToolPage {
         if (idx < this.selectedFiles.length - 1) {
           const item = this.selectedFiles.splice(idx, 1)[0];
           this.selectedFiles.splice(idx + 1, 0, item);
+          this.dropzone.setFiles(this.selectedFiles);
           this.renderMultiFileGrid();
+          this.updateSidebarMeta();
         }
+      });
+    });
+
+    // HTML5 Drag-and-Drop Reordering across cards
+    let draggedIndex: number | null = null;
+    const cardEls = this.container.querySelectorAll('.ilove-file-card');
+
+    cardEls.forEach((cardEl) => {
+      cardEl.addEventListener('dragstart', (e: Event) => {
+        const de = e as DragEvent;
+        draggedIndex = parseInt((cardEl as HTMLElement).dataset.index || '0', 10);
+        (cardEl as HTMLElement).classList.add('dragging');
+        if (de.dataTransfer) {
+          de.dataTransfer.effectAllowed = 'move';
+          de.dataTransfer.setData('text/plain', String(draggedIndex));
+        }
+      });
+
+      cardEl.addEventListener('dragend', () => {
+        (cardEl as HTMLElement).classList.remove('dragging');
+        draggedIndex = null;
+      });
+
+      cardEl.addEventListener('dragover', (e: Event) => {
+        e.preventDefault();
+        const de = e as DragEvent;
+        if (de.dataTransfer) de.dataTransfer.dropEffect = 'move';
+        (cardEl as HTMLElement).classList.add('drag-over');
+      });
+
+      cardEl.addEventListener('dragleave', () => {
+        (cardEl as HTMLElement).classList.remove('drag-over');
+      });
+
+      cardEl.addEventListener('drop', (e: Event) => {
+        e.preventDefault();
+        (cardEl as HTMLElement).classList.remove('drag-over');
+        const targetIndex = parseInt((cardEl as HTMLElement).dataset.index || '0', 10);
+        if (draggedIndex !== null && draggedIndex !== targetIndex) {
+          const moved = this.selectedFiles.splice(draggedIndex, 1)[0];
+          this.selectedFiles.splice(targetIndex, 0, moved);
+          this.dropzone.setFiles(this.selectedFiles);
+          this.renderMultiFileGrid();
+          this.updateSidebarMeta();
+        }
+        draggedIndex = null;
       });
     });
   }
@@ -896,7 +1036,46 @@ export class ToolPage {
 
   private bindPageNumberLiveEvents(): void {
     const posSelect = this.container.querySelector('#opt-page-num-pos') as HTMLSelectElement;
+    const fmtSelect = this.container.querySelector('#opt-page-num-fmt') as HTMLSelectElement;
+    const startNumInput = this.container.querySelector('#opt-page-num-start-num') as HTMLInputElement;
+    const fontSizeInput = this.container.querySelector('#opt-page-num-size') as HTMLInputElement;
+    const fontSelect = this.container.querySelector('#opt-page-num-font') as HTMLSelectElement;
     const tag = this.container.querySelector('#live-pagenum-tag') as HTMLElement;
+
+    const updateTag = () => {
+      if (!tag) return;
+      const fmt = fmtSelect?.value || 'Page n of total';
+      const num = parseInt(startNumInput?.value || '1', 10) || 1;
+      const total = 12;
+      let text = `Page ${num} of ${total}`;
+      switch (fmt) {
+        case 'Page n':
+          text = `Page ${num}`;
+          break;
+        case 'n of total':
+          text = `${num} of ${total}`;
+          break;
+        case 'n/total':
+          text = `${num} / ${total}`;
+          break;
+        case 'n':
+          text = `${num}`;
+          break;
+        default:
+          text = `Page ${num} of ${total}`;
+          break;
+      }
+      tag.textContent = text;
+      const sz = parseInt(fontSizeInput?.value || '10', 10) || 10;
+      tag.style.fontSize = `${Math.min(20, Math.max(8, sz))}px`;
+      if (fontSelect?.value === 'Courier') {
+        tag.style.fontFamily = 'monospace';
+      } else if (fontSelect?.value === 'Times') {
+        tag.style.fontFamily = 'Georgia, serif';
+      } else {
+        tag.style.fontFamily = 'inherit';
+      }
+    };
 
     posSelect?.addEventListener('change', () => {
       this.livePageNumPosition = posSelect.value;
@@ -904,6 +1083,12 @@ export class ToolPage {
         tag.className = `pagenum-overlay-tag pos-${this.livePageNumPosition}`;
       }
     });
+
+    fmtSelect?.addEventListener('change', updateTag);
+    startNumInput?.addEventListener('input', updateTag);
+    fontSizeInput?.addEventListener('input', updateTag);
+    fontSelect?.addEventListener('change', updateTag);
+    updateTag();
 
     // 3x3 position matrix buttons in sidebar
     this.container.querySelectorAll('.pos-grid-cell').forEach((cell) => {
@@ -1385,14 +1570,40 @@ This text will be formatted and paginated into a clean PDF document.
             <div class="form-group">
               <label class="form-label">Split Mode</label>
               <select class="form-select" id="opt-split-mode">
-                <option value="ranges" selected>Extract Page Ranges</option>
+                <option value="ranges" selected>Extract Custom Ranges</option>
+                <option value="every_n">Split Every N Pages</option>
                 <option value="all">Separate Every Page into PDF</option>
               </select>
             </div>
             <div class="form-group" id="opt-split-range-group">
               <label class="form-label">Page Ranges</label>
               <input type="text" class="form-input" id="opt-split-ranges" placeholder="e.g. 1-2, 4" value="1" />
-              <small class="form-hint">Separate multiple ranges with commas (e.g. 1-3, 5-8).</small>
+              <small class="form-hint">Separate multiple ranges with commas (e.g. 1-3, 5-8). Multiple ranges produce a ZIP.</small>
+            </div>
+            <div class="form-group" id="opt-split-every-group" style="display: none;">
+              <label class="form-label">Pages per Output PDF</label>
+              <input type="number" class="form-input" id="opt-split-every-n" min="1" max="100" value="1" />
+              <small class="form-hint">Splits document into equal chunks of N pages each (packaged as a ZIP).</small>
+            </div>
+            <div class="sidebar-info-box" id="opt-split-summary-box">
+              <div class="info-box-icon">📦</div>
+              <div class="info-box-text" id="opt-split-summary-text">
+                Extracts custom range(s). Single range produces a PDF, multiple ranges produce a ZIP.
+              </div>
+            </div>
+          </div>
+        `;
+
+      // 16. Organize PDF Pages
+      case 'organize-pdf':
+      case 'organize-pdf-pages':
+        return `
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">📑</div>
+              <div class="info-box-text">
+                Review and reorder pages in the interactive canvas, then apply changes.
+              </div>
             </div>
           </div>
         `;
@@ -1554,11 +1765,49 @@ This text will be formatted and paginated into a clean PDF document.
             <div class="form-group">
               <label class="form-label">Format Style</label>
               <select class="form-select" id="opt-page-num-fmt">
-                <option value="Page n of total" selected>Page X of Y</option>
-                <option value="Page n">Page X</option>
-                <option value="n/total">X / Y</option>
-                <option value="n">Numbers Only (1, 2, 3...)</option>
+                <option value="Page n of total" selected>Page {n} of {total}</option>
+                <option value="Page n">Page {n}</option>
+                <option value="n of total">{n} of {total}</option>
+                <option value="n/total">{n} / {total}</option>
+                <option value="n">Numbers Only ({n})</option>
               </select>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div class="form-group">
+                <label class="form-label">First Number</label>
+                <input type="number" class="form-input" id="opt-page-num-start-num" min="1" value="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Start on Page</label>
+                <input type="number" class="form-input" id="opt-page-num-start-page" min="1" value="1" />
+              </div>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div class="form-group">
+                <label class="form-label">Font Family</label>
+                <select class="form-select" id="opt-page-num-font">
+                  <option value="Helvetica" selected>Helvetica</option>
+                  <option value="Times">Times New Roman</option>
+                  <option value="Courier">Courier</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Font Size (pt)</label>
+                <input type="number" class="form-input" id="opt-page-num-size" min="6" max="36" value="10" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Margin from Edge (pt)</label>
+              <input type="number" class="form-input" id="opt-page-num-margin" min="5" max="100" value="20" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Pages to Number</label>
+              <input type="text" class="form-input" id="opt-page-num-range" placeholder="e.g. 1-10 or leave blank for all" />
+              <small class="form-hint">Leave blank to number all document pages.</small>
             </div>
           </div>
         `;
@@ -1584,6 +1833,30 @@ This text will be formatted and paginated into a clean PDF document.
                 <option value="0">0° Horizontal</option>
                 <option value="90">90° Vertical</option>
               </select>
+            </div>
+          </div>
+        `;
+
+      // 25. Full PDF Editing
+      case 'full-pdf-editing':
+        return `
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">✏️</div>
+              <div class="info-box-text">
+                PDF Studio: Annotate, add text overlay, highlight passages, or sanitize your document.
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Add Text Annotation</label>
+              <input type="text" class="form-input" id="opt-studio-text" placeholder="e.g. APPROVED or Confidential" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Highlight Passage</label>
+              <div class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="opt-studio-highlight" style="cursor: pointer;" />
+                <span style="font-size: 0.9rem; color: var(--pra-text-secondary);">Add Header Highlight</span>
+              </div>
             </div>
           </div>
         `;
@@ -1651,6 +1924,14 @@ This text will be formatted and paginated into a clean PDF document.
               <label class="form-label">Keywords</label>
               <input type="text" class="form-input" id="opt-meta-keywords" placeholder="e.g. report, pdf, praverse" />
             </div>
+            <div class="form-group">
+              <label class="form-label">Creator</label>
+              <input type="text" class="form-input" id="opt-meta-creator" placeholder="Application or Creator" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Producer</label>
+              <input type="text" class="form-input" id="opt-meta-producer" placeholder="Producer / PDF Engine" />
+            </div>
           </div>
         `;
 
@@ -1687,21 +1968,50 @@ This text will be formatted and paginated into a clean PDF document.
     }
   }
 
+  private getProcessingTitle(): string {
+    const titles: Record<string, string> = {
+      'delete-pdf-pages': 'Deleting Selected Pages…',
+      'extract-pdf-pages': 'Extracting Pages…',
+      'rotate-pdf': 'Rotating PDF…',
+      'merge-pdf': 'Merging PDF Files…',
+      'split-pdf': 'Splitting PDF…',
+      'organize-pdf': 'Organizing PDF Pages…',
+      'organize-pdf-pages': 'Organizing PDF Pages…',
+      'compress-pdf': 'Compressing PDF…',
+      'ocr-pdf': 'Recognizing Text (OCR)…',
+      'crop-pdf': 'Cropping PDF Pages…',
+      'watermark-pdf': 'Applying Watermark…',
+      'add-page-numbers': 'Adding Page Numbers…',
+      'password-protect-pdf': 'Protecting PDF…',
+      'unlock-pdf': 'Unlocking PDF…',
+      'full-pdf-editing': 'Saving PDF Studio Document…',
+      'edit-pdf-metadata': 'Updating Metadata…',
+      'extract-pdf-text': 'Extracting Text…',
+      'jpg-to-pdf': 'Converting JPG to PDF…',
+      'png-to-pdf': 'Converting PNG to PDF…',
+      'images-to-pdf': 'Converting Images to PDF…',
+      'word-to-pdf': 'Converting Word to PDF…',
+      'excel-to-pdf': 'Converting Excel to PDF…',
+      'powerpoint-to-pdf': 'Converting PowerPoint to PDF…',
+      'html-to-pdf': 'Converting HTML to PDF…',
+      'txt-to-pdf': 'Converting TXT to PDF…',
+      'markdown-to-pdf': 'Converting Markdown to PDF…',
+      'pdf-to-jpg': 'Converting PDF to JPG…',
+      'pdf-to-png': 'Converting PDF to PNG…',
+      'pdf-to-word': 'Converting PDF to Word…',
+      'pdf-to-markdown': 'Converting PDF to Markdown…',
+      'rtf-conversion': 'Converting RTF…',
+    };
+    return titles[this.tool.id] || `Processing ${this.tool.title}…`;
+  }
+
   private bindEvents(): void {
     const processBtn = this.container.querySelector('#tp-process-btn') as HTMLElement;
     const errorBanner = this.container.querySelector('#tp-error-banner') as HTMLElement;
-    const retryBtn = this.container.querySelector('#tp-error-retry-btn');
     const backToPickerBtn = this.container.querySelector('#btn-back-to-picker');
 
     backToPickerBtn?.addEventListener('click', () => {
       this.transitionToSelection();
-    });
-
-    retryBtn?.addEventListener('click', () => {
-      errorBanner.style.display = 'none';
-      if (this.selectedFiles.length > 0) {
-        processBtn?.click();
-      }
     });
 
     // Dual Input tab switcher
@@ -1806,6 +2116,63 @@ This text will be formatted and paginated into a clean PDF document.
       });
     }
 
+    // Split Mode selector toggle
+    const splitModeSelect = this.container.querySelector('#opt-split-mode') as HTMLSelectElement;
+    const splitRangeGroup = this.container.querySelector('#opt-split-range-group') as HTMLElement;
+    const splitEveryGroup = this.container.querySelector('#opt-split-every-group') as HTMLElement;
+    const splitSummaryText = this.container.querySelector('#opt-split-summary-text') as HTMLElement;
+
+    if (splitModeSelect) {
+      splitModeSelect.addEventListener('change', () => {
+        const mode = splitModeSelect.value;
+        if (mode === 'every_n') {
+          if (splitRangeGroup) splitRangeGroup.style.display = 'none';
+          if (splitEveryGroup) splitEveryGroup.style.display = 'block';
+          if (splitSummaryText) {
+            splitSummaryText.textContent = 'Splits the document into equal parts of N pages each (packaged as a ZIP).';
+          }
+        } else if (mode === 'all') {
+          if (splitRangeGroup) splitRangeGroup.style.display = 'none';
+          if (splitEveryGroup) splitEveryGroup.style.display = 'none';
+          if (splitSummaryText) {
+            splitSummaryText.textContent = 'Separates every individual page into its own PDF and packages all pages into a ZIP.';
+          }
+        } else {
+          if (splitRangeGroup) splitRangeGroup.style.display = 'block';
+          if (splitEveryGroup) splitEveryGroup.style.display = 'none';
+          if (splitSummaryText) {
+            splitSummaryText.textContent = 'Extracts custom range(s). Single range produces a PDF, multiple ranges produce a ZIP.';
+          }
+        }
+      });
+    }
+
+    // Extract PDF Pages: sync manual input with thumbnails
+    const extPagesInput = this.container.querySelector('#opt-extract-pages') as HTMLInputElement;
+    if (extPagesInput && this.tool.id === 'extract-pdf-pages') {
+      extPagesInput.addEventListener('input', () => {
+        const val = extPagesInput.value.trim();
+        if (!val || this.pageThumbnails.length === 0) return;
+        const requested = new Set<number>();
+        const parts = val.split(',').map((s) => s.trim()).filter(Boolean);
+        for (const p of parts) {
+          if (p.includes('-')) {
+            const [s, e] = p.split('-').map((n) => parseInt(n.trim(), 10));
+            if (!isNaN(s) && !isNaN(e)) {
+              for (let i = Math.min(s, e); i <= Math.max(s, e); i++) requested.add(i);
+            }
+          } else {
+            const num = parseInt(p, 10);
+            if (!isNaN(num)) requested.add(num);
+          }
+        }
+        this.pageThumbnails.forEach((p) => {
+          p.selected = requested.has(p.pageNumber);
+        });
+        this.renderPageLevelGrid();
+      });
+    }
+
     // Compression profiles selection card active state
     this.container.querySelectorAll('.ilove-comp-card').forEach((card) => {
       card.addEventListener('click', () => {
@@ -1816,12 +2183,36 @@ This text will be formatted and paginated into a clean PDF document.
       });
     });
 
-    // Primary Action Button Execution
-    processBtn?.addEventListener('click', async () => {
+    // Primary Action Button Execution & Universal Lifecycle Handling
+    const origBtnHtml = processBtn?.innerHTML || '';
+    const workspaceContainer = this.container.querySelector('#tp-workspace-container') as HTMLElement;
+    const retryBtn = this.container.querySelector('#tp-error-retry-btn') as HTMLElement;
+
+    const handleProcess = async () => {
+      if (this.isProcessing) return;
+      this.isProcessing = true;
+
+      // 1. Immediate visual feedback on the button
+      if (processBtn) {
+        processBtn.setAttribute('disabled', 'true');
+        processBtn.classList.add('is-loading');
+        processBtn.innerHTML = `
+          <span class="btn-spinner"></span>
+          <span id="tp-process-label">Processing…</span>
+        `;
+      }
+
+      // 2. Lock workspace to prevent conflicting user interactions during processing
+      if (workspaceContainer) workspaceContainer.classList.add('workspace-locked');
       errorBanner.style.display = 'none';
-      processBtn.setAttribute('disabled', 'true');
-      this.progressBar.reset();
-      this.progressBar.show();
+
+      // 3. Show universal progress modal immediately
+      this.progressBar.show({
+        title: this.getProcessingTitle(),
+        message: 'Preparing files…',
+        indeterminate: true,
+        toolId: this.tool.id,
+      });
 
       try {
         await this.executeService();
@@ -1833,15 +2224,27 @@ This text will be formatted and paginated into a clean PDF document.
           errorDesc.textContent = err?.message || 'Processing failed. Please check your document and try again.';
         }
         errorBanner.style.display = 'flex';
+        // Reset button
+        if (processBtn) {
+          processBtn.classList.remove('is-loading');
+          processBtn.removeAttribute('disabled');
+          processBtn.innerHTML = origBtnHtml;
+        }
+        if (workspaceContainer) workspaceContainer.classList.remove('workspace-locked');
       } finally {
-        processBtn.removeAttribute('disabled');
+        this.isProcessing = false;
       }
-    });
+    };
+
+    processBtn?.addEventListener('click', handleProcess);
+    retryBtn?.addEventListener('click', handleProcess);
   }
 
   private async executeService(): Promise<void> {
-    const onProgress = (percent: number, status: string) => {
-      this.progressBar.update(percent, status);
+    const onProgress = (percent: number | null, status: string, detail?: string) => {
+      this.progressBar.update(percent, status, detail);
+      const procLabel = this.container.querySelector('#tp-process-label');
+      if (procLabel && status) procLabel.textContent = status;
     };
 
     // Handle Direct Editor Inputs for HTML, Markdown, and TXT
@@ -1879,14 +2282,28 @@ This text will be formatted and paginated into a clean PDF document.
     switch (this.tool.id) {
       // 1. JPG to PDF
       case 'jpg-to-pdf': {
-        const bytes = await convertJpgToPdf(file, { onProgress });
-        this.finishResult(`${baseName}.pdf`, bytes);
+        const pageSize = ((document.getElementById('opt-img-pagesize') as HTMLSelectElement)?.value?.toUpperCase() || 'A4') as any;
+        const orientation = ((document.getElementById('opt-img-orientation') as HTMLSelectElement)?.value || 'portrait') as any;
+        const bytes = await convertJpgToPdf(this.selectedFiles, {
+          pageSize,
+          orientation,
+          onProgress,
+        });
+        const outName = this.selectedFiles.length > 1 ? `${baseName}-combined.pdf` : `${baseName}.pdf`;
+        this.finishResult(outName, bytes);
         break;
       }
       // 2. PNG to PDF
       case 'png-to-pdf': {
-        const bytes = await convertPngToPdf(file, { onProgress });
-        this.finishResult(`${baseName}.pdf`, bytes);
+        const pageSize = ((document.getElementById('opt-img-pagesize') as HTMLSelectElement)?.value?.toUpperCase() || 'A4') as any;
+        const orientation = ((document.getElementById('opt-img-orientation') as HTMLSelectElement)?.value || 'portrait') as any;
+        const bytes = await convertPngToPdf(this.selectedFiles, {
+          pageSize,
+          orientation,
+          onProgress,
+        });
+        const outName = this.selectedFiles.length > 1 ? `${baseName}-combined.pdf` : `${baseName}.pdf`;
+        this.finishResult(outName, bytes);
         break;
       }
       // 3. Images to PDF
@@ -1968,35 +2385,53 @@ This text will be formatted and paginated into a clean PDF document.
       case 'split-pdf': {
         const mode = (document.getElementById('opt-split-mode') as HTMLSelectElement)?.value as any || 'ranges';
         const range = (document.getElementById('opt-split-ranges') as HTMLInputElement)?.value || '1';
-        const res = await splitPdf(file, { mode, rangeString: range, onProgress });
-        this.finishResult(res.filename, res.data);
+        const everyN = parseInt((document.getElementById('opt-split-every-n') as HTMLInputElement)?.value || '1', 10) || 1;
+        const res = await splitPdf(file, { mode, rangeString: range, everyN, onProgress });
+        await this.finishResult(res.filename, res.data);
         break;
       }
       // 16. Organize PDF Pages
       case 'organize-pdf':
       case 'organize-pdf-pages': {
-        window.location.hash = '#/editor';
+        const pageOrder = this.pageThumbnails.length > 0
+          ? this.pageThumbnails.map((p) => ({ pageIndex: p.pageNumber - 1, rotation: p.rotation || 0 }))
+          : Array.from({ length: 1 }, (_, i) => ({ pageIndex: i, rotation: 0 }));
+        const res = await organizePdfPages(file, pageOrder, { onProgress });
+        await this.finishResult(`${baseName}-organized.pdf`, res);
         break;
       }
       // 17. Delete PDF Pages
       case 'delete-pdf-pages': {
-        const delSpec = (document.getElementById('opt-delete-pages') as HTMLInputElement)?.value || '1';
+        const inputVal = (document.getElementById('opt-delete-pages') as HTMLInputElement)?.value?.trim();
+        const markedFromGrid = this.pageThumbnails.filter((p) => p.markedForDelete).map((p) => p.pageNumber);
+        const delSpec = inputVal || (markedFromGrid.length > 0 ? markedFromGrid.join(',') : '');
+        if (!delSpec) {
+          throw new Error('Please select at least one page to delete (click on a page preview or enter page numbers).');
+        }
+        if (this.pageThumbnails.length > 0 && markedFromGrid.length >= this.pageThumbnails.length) {
+          throw new Error('Cannot delete all pages in the document. At least one page must remain.');
+        }
         const res = await deletePdfPages(file, delSpec, { onProgress });
-        this.finishResult(`${baseName}-pages-removed.pdf`, res);
+        await this.finishResult(`${baseName}-pages-removed.pdf`, res);
         break;
       }
       // 18. Extract PDF Pages
       case 'extract-pdf-pages': {
-        const extSpec = (document.getElementById('opt-extract-pages') as HTMLInputElement)?.value || '1';
+        const inputVal = (document.getElementById('opt-extract-pages') as HTMLInputElement)?.value?.trim();
+        const selectedFromGrid = this.pageThumbnails.filter((p) => p.selected).map((p) => p.pageNumber);
+        const extSpec = inputVal || (selectedFromGrid.length > 0 ? selectedFromGrid.join(',') : '1');
+        if (!extSpec) {
+          throw new Error('Please select at least one page or enter a page range to extract.');
+        }
         const res = await extractPdfPages(file, extSpec, { onProgress });
-        this.finishResult(`${baseName}-extracted.pdf`, res);
+        await this.finishResult(`${baseName}-extracted.pdf`, res);
         break;
       }
       // 19. Rotate PDF
       case 'rotate-pdf': {
         const angle = parseInt((document.getElementById('opt-rotate-angle') as HTMLSelectElement)?.value || '90', 10) as any;
         const res = await rotatePdf(file, angle, undefined, { onProgress });
-        this.finishResult(`${baseName}-rotated.pdf`, res);
+        await this.finishResult(`${baseName}-rotated.pdf`, res);
         break;
       }
       // 20. Crop PDF
@@ -2006,7 +2441,7 @@ This text will be formatted and paginated into a clean PDF document.
         const bottom = parseInt((document.getElementById('opt-crop-bottom') as HTMLInputElement)?.value, 10) || 0;
         const left = parseInt((document.getElementById('opt-crop-left') as HTMLInputElement)?.value, 10) || 0;
         const res = await cropPdf(file, { top, right, bottom, left }, { onProgress });
-        this.finishResult(`${baseName}-cropped.pdf`, res);
+        await this.finishResult(`${baseName}-cropped.pdf`, res);
         break;
       }
       // 21. Compress PDF
@@ -2014,22 +2449,38 @@ This text will be formatted and paginated into a clean PDF document.
         const checkedRadio = document.querySelector('input[name="comp-level"]:checked') as HTMLInputElement;
         const level = (checkedRadio?.value || 'medium') as any;
         const res = await compressPdf(file, { level, onProgress });
-        this.finishResult(`${baseName}-compressed.pdf`, res.data, res.originalSize, res.newSize, res.ratio);
+        await this.finishResult(`${baseName}-compressed.pdf`, res.data, res.originalSize, res.newSize, res.ratio);
         break;
       }
       // 22. OCR PDF
       case 'ocr-pdf': {
         const lang = (document.getElementById('opt-ocr-lang') as HTMLSelectElement)?.value || 'eng';
         const res = await ocrPdf(file, { language: lang, onProgress });
-        this.finishResult(`${baseName}-searchable-ocr.pdf`, res.data);
+        await this.finishResult(`${baseName}-searchable-ocr.pdf`, res.data);
         break;
       }
       // 23. Add Page Numbers
       case 'add-page-numbers': {
         const pos = (document.getElementById('opt-page-num-pos') as HTMLSelectElement)?.value as any || 'bottom-center';
         const fmt = (document.getElementById('opt-page-num-fmt') as HTMLSelectElement)?.value as any || 'Page n of total';
-        const res = await addPageNumbersToPdf(file, { position: pos, format: fmt, onProgress });
-        this.finishResult(`${baseName}-numbered.pdf`, res);
+        const startNumber = parseInt((document.getElementById('opt-page-num-start-num') as HTMLInputElement)?.value || '1', 10) || 1;
+        const startPage = parseInt((document.getElementById('opt-page-num-start-page') as HTMLInputElement)?.value || '1', 10) || 1;
+        const font = (document.getElementById('opt-page-num-font') as HTMLSelectElement)?.value as any || 'Helvetica';
+        const fontSize = parseInt((document.getElementById('opt-page-num-size') as HTMLInputElement)?.value || '10', 10) || 10;
+        const margin = parseInt((document.getElementById('opt-page-num-margin') as HTMLInputElement)?.value || '20', 10) || 20;
+        const pagesToNumber = (document.getElementById('opt-page-num-range') as HTMLInputElement)?.value?.trim() || undefined;
+        const res = await addPageNumbersToPdf(file, {
+          position: pos,
+          format: fmt,
+          startNumber,
+          startPage,
+          font,
+          fontSize,
+          margin,
+          pagesToNumber,
+          onProgress,
+        });
+        await this.finishResult(`${baseName}-numbered.pdf`, res);
         break;
       }
       // 24. Watermark PDF
@@ -2038,12 +2489,35 @@ This text will be formatted and paginated into a clean PDF document.
         const opacity = parseFloat((document.getElementById('opt-watermark-opacity') as HTMLInputElement)?.value) || 0.3;
         const rotation = parseInt((document.getElementById('opt-watermark-angle') as HTMLSelectElement)?.value, 10) || 45;
         const res = await watermarkPdf(file, { type: 'text', text, opacity, rotation, onProgress });
-        this.finishResult(`${baseName}-watermarked.pdf`, res);
+        await this.finishResult(`${baseName}-watermarked.pdf`, res);
         break;
       }
       // 25. Full PDF Editing
       case 'full-pdf-editing': {
-        window.location.hash = '#/editor';
+        const textAnnotation = (document.getElementById('opt-studio-text') as HTMLInputElement)?.value?.trim();
+        const addHighlight = (document.getElementById('opt-studio-highlight') as HTMLInputElement)?.checked;
+        const operations: any[] = [];
+        if (textAnnotation) {
+          operations.push({
+            type: 'addText',
+            text: textAnnotation,
+            x: 50,
+            y: 50,
+            size: 14,
+            color: { r: 0.1, g: 0.2, b: 0.8 },
+          });
+        }
+        if (addHighlight) {
+          operations.push({
+            type: 'addHighlight',
+            x: 40,
+            y: 720,
+            width: 200,
+            height: 24,
+          });
+        }
+        const res = await fullPdfEdit(file, { operations, onProgress });
+        await this.finishResult(`${baseName}-edited.pdf`, res);
         break;
       }
       // 26. Password-Protect PDF
@@ -2053,14 +2527,14 @@ This text will be formatted and paginated into a clean PDF document.
         if (!pass) throw new Error('Please enter a password to protect your document.');
         if (pass !== confirm) throw new Error('Passwords do not match. Please verify your entry.');
         const res = await passwordProtectPdf(file, { userPassword: pass, onProgress });
-        this.finishResult(`${baseName}-protected.pdf`, res);
+        await this.finishResult(`${baseName}-protected.pdf`, res);
         break;
       }
       // 27. Unlock PDF
       case 'unlock-pdf': {
         const pass = (document.getElementById('opt-unlock-pass') as HTMLInputElement)?.value || '';
         const res = await unlockPdf(file, pass, { onProgress });
-        this.finishResult(`${baseName}-unlocked.pdf`, res);
+        await this.finishResult(`${baseName}-unlocked.pdf`, res);
         break;
       }
       // 28. Edit PDF Metadata
@@ -2069,24 +2543,32 @@ This text will be formatted and paginated into a clean PDF document.
         const author = (document.getElementById('opt-meta-author') as HTMLInputElement)?.value || '';
         const subject = (document.getElementById('opt-meta-subject') as HTMLInputElement)?.value || '';
         const keywords = (document.getElementById('opt-meta-keywords') as HTMLInputElement)?.value || '';
-        const res = await editPdfMetadata(file, { title, author, subject, keywords }, { onProgress });
-        this.finishResult(`${baseName}-metadata-updated.pdf`, res);
+        const creator = (document.getElementById('opt-meta-creator') as HTMLInputElement)?.value || '';
+        const producer = (document.getElementById('opt-meta-producer') as HTMLInputElement)?.value || '';
+        const res = await editPdfMetadata(file, { title, author, subject, keywords, creator, producer }, { onProgress });
+        await this.finishResult(`${baseName}-metadata-updated.pdf`, res);
         break;
       }
       // 29. Extract PDF Text
       case 'extract-pdf-text': {
-        const text = await convertPdfToText(file, { onProgress });
-        this.finishResult(`${baseName}.txt`, text);
+        const res = await convertPdfToText(file, { onProgress });
+        await this.finishResult(res.filename, res.text, undefined, undefined, undefined, {
+          text: res.text,
+          wordCount: res.wordCount,
+          characterCount: res.characterCount,
+          pageCount: res.pageCount,
+          hasText: res.hasText,
+        });
         break;
       }
       // 30. RTF Conversion
       case 'rtf-conversion': {
         if (file.name.toLowerCase().endsWith('.rtf')) {
           const res = await convertRtfToPdf(file, { onProgress });
-          this.finishResult(`${baseName}.pdf`, res);
+          await this.finishResult(`${baseName}.pdf`, res);
         } else {
           const rtf = await convertPdfToRtf(file, { onProgress });
-          this.finishResult(`${baseName}.rtf`, rtf);
+          await this.finishResult(`${baseName}.rtf`, rtf);
         }
         break;
       }
@@ -2095,19 +2577,46 @@ This text will be formatted and paginated into a clean PDF document.
     }
   }
 
-  private finishResult(
+  private async finishResult(
     filename: string,
     data: Uint8Array | Blob | string,
     originalSize?: number,
     newSize?: number,
-    ratio?: string
-  ): void {
-    this.progressBar.update(100, 'Processing complete!');
+    ratio?: string,
+    textResult?: {
+      text: string;
+      wordCount?: number;
+      characterCount?: number;
+      pageCount?: number;
+      hasText?: boolean;
+    }
+  ): Promise<void> {
+    await this.progressBar.success('Completed successfully!');
     this.progressBar.hide();
 
-    // Hide workspace
+    // Reset action button state
+    const processBtn = this.container.querySelector('#tp-process-btn') as HTMLElement;
+    if (processBtn) {
+      processBtn.classList.remove('is-loading');
+      processBtn.removeAttribute('disabled');
+      const visual = getToolVisualMeta(this.tool.id);
+      processBtn.innerHTML = `
+        <span class="btn-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </span>
+        <span id="tp-process-label">${visual.actionBtnLabel || this.getPrimaryActionLabel()}</span>
+        <span class="btn-arrow-cue">→</span>
+      `;
+    }
+
+    // Unlock workspace
     const workspaceContainer = this.container.querySelector('#tp-workspace-container') as HTMLElement;
-    if (workspaceContainer) workspaceContainer.style.display = 'none';
+    if (workspaceContainer) {
+      workspaceContainer.classList.remove('workspace-locked');
+      workspaceContainer.style.display = 'none';
+    }
 
     this.resultCard.show({
       filename,
@@ -2117,6 +2626,7 @@ This text will be formatted and paginated into a clean PDF document.
       reductionRatio: ratio,
       toolId: this.tool.id,
       toolTitle: this.tool.title,
+      textResult,
       onReset: () => {
         this.transitionToSelection();
       },

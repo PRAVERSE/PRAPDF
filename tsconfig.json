@@ -15,5 +15,17 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "scripts", "tests"]
+  "include": [
+    "src/app.ts",
+    "src/components/**/*",
+    "src/pages/**/*",
+    "src/services/**/*",
+    "src/worker/**/*"
+  ],
+  "exclude": [
+    "src/server/**/*",
+    "src/processor/**/*",
+    "scripts/**/*",
+    "tests/**/*"
+  ]
 }

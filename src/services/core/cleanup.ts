@@ -51,12 +51,18 @@ export function revokeBlobUrl(url: string): void {
  * Triggers an immediate download of an ArrayBuffer or Blob as a file,
  * then schedules automatic memory cleanup.
  */
-export function triggerFileDownload(data: Uint8Array | ArrayBuffer | Blob, filename: string): void {
+export function triggerFileDownload(
+  data: Uint8Array | ArrayBuffer | Blob,
+  filename: string,
+  mimeType?: string
+): void {
   let blob: Blob;
   if (data instanceof Blob) {
     blob = data;
   } else {
-    blob = new Blob([data as any]);
+    const isPdf = filename.toLowerCase().endsWith('.pdf');
+    const type = mimeType || (isPdf ? 'application/pdf' : 'application/octet-stream');
+    blob = new Blob([data as any], { type });
   }
 
   const url = URL.createObjectURL(blob);

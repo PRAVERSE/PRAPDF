@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pra-pdf",
+  "account_id": "1737db0da2434882972c08137ab3f80b",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-10-06",
   "compatibility_flags": [
@@ -10,6 +11,8 @@
     "enabled": true
   },
   "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   }
 }

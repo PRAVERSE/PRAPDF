@@ -137,7 +137,7 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
       return await doc.save();
     }
 
-    it('GET /api/v1/cf/health returns Phase 3B health status and exactly 6 active services', async () => {
+    it('GET /api/v1/cf/health returns Phase 3B health status and active services', async () => {
       const req = new Request('http://localhost/api/v1/cf/health', { method: 'GET' });
       const res = await worker.fetch(req, {});
       expect(res.status).toBe(200);
@@ -152,6 +152,12 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
         'crop-pdf',
         'organize-pdf',
         'delete-pdf-pages',
+        'extract-pdf-pages',
+        'edit-pdf-metadata',
+        'extract-pdf-text',
+        'add-page-numbers',
+        'merge-pdf',
+        'split-pdf',
       ]);
       expect(json.maxUploadBytes).toBe(52428800);
     });
@@ -317,6 +323,86 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    // =========================================================================
+    // Multi-Image to PDF Combining Tests
+    // =========================================================================
+    it('POST /api/v1/cf/process [jpg-to-pdf] combines multiple JPG files into ONE multi-page PDF in exact order', async () => {
+      const form = new FormData();
+      form.append('service', 'jpg-to-pdf');
+      // Append 3 JPG images
+      form.append('files', new Blob([validJpeg as any]), 'page1.jpg');
+      form.append('files', new Blob([validJpeg as any]), 'page2.jpg');
+      form.append('files', new Blob([validJpeg as any]), 'page3.jpg');
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.service).toBe('jpg-to-pdf');
+      expect(json.mimeType).toBe('application/pdf');
+      expect(json.outputFileName).toBe('converted-images.pdf');
+      expect(json.metadata.pageCount).toBe(3);
+
+      const pdfBytes = Buffer.from(json.outputBase64, 'base64');
+      const doc = await PDFDocument.load(pdfBytes);
+      expect(doc.getPageCount()).toBe(3);
+    });
+
+    it('POST /api/v1/cf/process [png-to-pdf] combines multiple PNG files into ONE multi-page PDF in exact order', async () => {
+      const form = new FormData();
+      form.append('service', 'png-to-pdf');
+      // Append 2 PNG images
+      form.append('files', new Blob([validPng as any]), 'page1.png');
+      form.append('files', new Blob([validPng as any]), 'page2.png');
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.service).toBe('png-to-pdf');
+      expect(json.mimeType).toBe('application/pdf');
+      expect(json.outputFileName).toBe('converted-images.pdf');
+      expect(json.metadata.pageCount).toBe(2);
+
+      const pdfBytes = Buffer.from(json.outputBase64, 'base64');
+      const doc = await PDFDocument.load(pdfBytes);
+      expect(doc.getPageCount()).toBe(2);
+    });
+
+    it('POST /api/v1/cf/process [jpg-to-pdf] rejects multi-image batch if any image is invalid format', async () => {
+      const form = new FormData();
+      form.append('service', 'jpg-to-pdf');
+      form.append('files', new Blob([validJpeg as any]), 'page1.jpg');
+      form.append('files', new Blob([new Uint8Array([0x00, 0x01, 0x02, 0x03])]), 'corrupt.jpg');
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(400);
+
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe('INVALID_FILE_TYPE');
+    });
+
+    it('POST /api/v1/cf/process [png-to-pdf] rejects multi-image batch if any image is invalid format', async () => {
+      const form = new FormData();
+      form.append('service', 'png-to-pdf');
+      form.append('files', new Blob([validPng as any]), 'page1.png');
+      form.append('files', new Blob([new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07])]), 'corrupt.png');
+
+      const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
+      const res = await worker.fetch(req, {});
+      expect(res.status).toBe(400);
+
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe('INVALID_FILE_TYPE');
     });
   });
 });

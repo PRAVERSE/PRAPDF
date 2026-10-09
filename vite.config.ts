@@ -23,4 +23,7 @@ export default defineConfig(({ mode }) => ({
     target: 'es2022',
     outDir: 'dist',
   },
+  test: {
+    include: ['tests/worker_cf_prototype.test.ts', 'tests/first_6_services.test.ts', 'tests/ui_routes.test.ts'],
+  },
 }));

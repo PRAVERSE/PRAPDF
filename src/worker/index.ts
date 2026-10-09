@@ -85,6 +85,12 @@ export const ACTIVE_PRODUCTION_SERVICES: WorkerServiceName[] = [
   'crop-pdf',
   'organize-pdf',
   'delete-pdf-pages',
+  'extract-pdf-pages',
+  'edit-pdf-metadata',
+  'extract-pdf-text',
+  'add-page-numbers',
+  'merge-pdf',
+  'split-pdf',
 ];
 
 export default {
@@ -153,17 +159,31 @@ export default {
 
       try {
         let inputBuffer: Uint8Array | null = null;
+        let inputBuffers: Uint8Array[] | null = null;
         let options: any = {};
         const contentType = request.headers.get('content-type') || '';
 
         if (contentType.includes('multipart/form-data')) {
           const formData = await request.formData();
           serviceName = (formData.get('service') as string) || '';
-          const file = formData.get('file');
 
-          if (file && typeof file === 'object' && 'arrayBuffer' in file) {
-            const ab = await (file as File).arrayBuffer();
-            inputBuffer = new Uint8Array(ab);
+          // Look for 'files' array first, fallback to 'file'
+          const rawFiles = formData.getAll('files').length > 0
+            ? formData.getAll('files')
+            : formData.getAll('file');
+
+          if (rawFiles.length > 0) {
+            const buffers: Uint8Array[] = [];
+            for (const item of rawFiles) {
+              if (item && typeof item === 'object' && 'arrayBuffer' in item) {
+                const ab = await (item as File).arrayBuffer();
+                buffers.push(new Uint8Array(ab));
+              }
+            }
+            if (buffers.length > 0) {
+              inputBuffers = buffers;
+              inputBuffer = buffers[0];
+            }
           }
 
           const rawOptions = formData.get('options');
@@ -179,8 +199,12 @@ export default {
           serviceName = body.service || '';
           options = body.options || {};
 
-          if (body.fileBase64 && typeof body.fileBase64 === 'string') {
+          if (Array.isArray(body.filesBase64) && body.filesBase64.length > 0) {
+            inputBuffers = body.filesBase64.map((b64: string) => base64ToUint8Array(b64));
+            inputBuffer = inputBuffers[0];
+          } else if (body.fileBase64 && typeof body.fileBase64 === 'string') {
             inputBuffer = base64ToUint8Array(body.fileBase64);
+            inputBuffers = [inputBuffer];
           }
         } else {
           // Direct binary stream with query param
@@ -188,10 +212,14 @@ export default {
           const ab = await request.arrayBuffer();
           if (ab.byteLength > 0) {
             inputBuffer = new Uint8Array(ab);
+            inputBuffers = [inputBuffer];
           }
         }
 
-        inputSizeBytes = inputBuffer ? inputBuffer.length : 0;
+        const totalPayloadBytes = inputBuffers && inputBuffers.length > 0
+          ? inputBuffers.reduce((sum, b) => sum + b.length, 0)
+          : inputBuffer ? inputBuffer.length : 0;
+        inputSizeBytes = totalPayloadBytes;
 
         // Security Validation 1: Service ID
         if (!serviceName) {
@@ -241,7 +269,7 @@ export default {
         }
 
         // Security Validation 3: Non-empty payload
-        if (!inputBuffer || inputBuffer.length === 0) {
+        if ((!inputBuffers || inputBuffers.length === 0) && (!inputBuffer || inputBuffer.length === 0)) {
           const durationMs = Math.round(performance.now() - startTime);
           logSafeTelemetry({
             requestId,
@@ -264,13 +292,13 @@ export default {
           );
         }
 
-        // Security Validation 4: Strict 50 MB check on actual buffer length
-        if (inputBuffer.length > MAX_UPLOAD_BYTES) {
+        // Security Validation 4: Strict 50 MB check on total actual buffer length
+        if (totalPayloadBytes > MAX_UPLOAD_BYTES) {
           const durationMs = Math.round(performance.now() - startTime);
           logSafeTelemetry({
             requestId,
             service: serviceName,
-            inputSizeBytes: inputBuffer.length,
+            inputSizeBytes: totalPayloadBytes,
             durationMs,
             success: false,
             statusCode: 413,
@@ -282,7 +310,7 @@ export default {
               requestId,
               service: serviceName,
               errorCode: 'PAYLOAD_TOO_LARGE',
-              message: `Payload exceeds maximum allowed size of 50 MB (${(inputBuffer.length / (1024 * 1024)).toFixed(2)} MB received).`,
+              message: `Payload exceeds maximum allowed size of 50 MB (${(totalPayloadBytes / (1024 * 1024)).toFixed(2)} MB received).`,
               maxAllowedBytes: MAX_UPLOAD_BYTES,
             },
             413
@@ -294,27 +322,45 @@ export default {
         let expectedTypeMsg = '';
 
         if (serviceName === 'jpg-to-pdf') {
-          // JPEG: FF D8 FF
+          const toCheck = inputBuffers && inputBuffers.length > 0 ? inputBuffers : (inputBuffer ? [inputBuffer] : []);
           fileTypeValid =
-            inputBuffer.length >= 4 &&
-            inputBuffer[0] === 0xff &&
-            inputBuffer[1] === 0xd8 &&
-            inputBuffer[2] === 0xff;
+            toCheck.length > 0 &&
+            toCheck.every((b) => b.length >= 4 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff);
           expectedTypeMsg = 'Invalid file format. Only JPEG images are supported for jpg-to-pdf.';
         } else if (serviceName === 'png-to-pdf') {
-          // PNG: 89 50 4E 47
+          const toCheck = inputBuffers && inputBuffers.length > 0 ? inputBuffers : (inputBuffer ? [inputBuffer] : []);
           fileTypeValid =
-            inputBuffer.length >= 8 &&
-            inputBuffer[0] === 0x89 &&
-            inputBuffer[1] === 0x50 &&
-            inputBuffer[2] === 0x4e &&
-            inputBuffer[3] === 0x47;
+            toCheck.length > 0 &&
+            toCheck.every(
+              (b) => b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
+            );
           expectedTypeMsg = 'Invalid file format. Only PNG images are supported for png-to-pdf.';
-        } else if (
-          ['rotate-pdf', 'crop-pdf', 'organize-pdf', 'delete-pdf-pages'].includes(serviceName)
-        ) {
-          // PDF: 25 50 44 46 (%PDF)
+        } else if (serviceName === 'merge-pdf') {
+          const toCheck = inputBuffers && inputBuffers.length > 0 ? inputBuffers : (inputBuffer ? [inputBuffer] : []);
           fileTypeValid =
+            toCheck.length > 0 &&
+            toCheck.every((b) => {
+              if (b.length < 4) return false;
+              const isPdf = b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
+              const isZip = b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
+              return isPdf || isZip;
+            });
+          expectedTypeMsg = 'Invalid file format. Only valid PDF files (%PDF) or archives are supported for merge-pdf.';
+        } else if (
+          [
+            'rotate-pdf',
+            'crop-pdf',
+            'organize-pdf',
+            'delete-pdf-pages',
+            'extract-pdf-pages',
+            'edit-pdf-metadata',
+            'extract-pdf-text',
+            'add-page-numbers',
+            'split-pdf',
+          ].includes(serviceName)
+        ) {
+          fileTypeValid =
+            inputBuffer !== null &&
             inputBuffer.length >= 5 &&
             inputBuffer[0] === 0x25 &&
             inputBuffer[1] === 0x50 &&
@@ -328,7 +374,7 @@ export default {
           logSafeTelemetry({
             requestId,
             service: serviceName,
-            inputSizeBytes: inputBuffer.length,
+            inputSizeBytes: totalPayloadBytes,
             durationMs,
             success: false,
             statusCode: 400,
@@ -347,9 +393,14 @@ export default {
         }
 
         // Execution: Pure in-memory Worker execution (Zero native deps, zero branding)
+        const targetInput =
+          (serviceName === 'jpg-to-pdf' || serviceName === 'png-to-pdf' || serviceName === 'merge-pdf') && inputBuffers
+            ? (inputBuffers.length === 1 ? inputBuffers[0] : inputBuffers)
+            : inputBuffer!;
+
         const result = await executeWorkerService(
           serviceName as WorkerServiceName,
-          inputBuffer,
+          targetInput as any,
           options
         );
         const durationMs = Math.round(performance.now() - startTime);
@@ -357,7 +408,7 @@ export default {
         logSafeTelemetry({
           requestId,
           service: serviceName,
-          inputSizeBytes: inputBuffer.length,
+          inputSizeBytes: totalPayloadBytes,
           durationMs,
           success: true,
           statusCode: 200,
@@ -443,17 +494,29 @@ export default {
 
       try {
         let inputBuffer: Uint8Array | null = null;
+        let inputBuffers: Uint8Array[] | null = null;
         let options: any = {};
         const contentType = request.headers.get('content-type') || '';
 
         if (contentType.includes('multipart/form-data')) {
           const formData = await request.formData();
           serviceName = (formData.get('service') as string) || '';
-          const file = formData.get('file');
+          const rawFiles = formData.getAll('files').length > 0
+            ? formData.getAll('files')
+            : formData.getAll('file');
 
-          if (file && typeof file === 'object' && 'arrayBuffer' in file) {
-            const ab = await (file as File).arrayBuffer();
-            inputBuffer = new Uint8Array(ab);
+          if (rawFiles.length > 0) {
+            const buffers: Uint8Array[] = [];
+            for (const item of rawFiles) {
+              if (item && typeof item === 'object' && 'arrayBuffer' in item) {
+                const ab = await (item as File).arrayBuffer();
+                buffers.push(new Uint8Array(ab));
+              }
+            }
+            if (buffers.length > 0) {
+              inputBuffers = buffers;
+              inputBuffer = buffers[0];
+            }
           }
 
           const rawOptions = formData.get('options');
@@ -469,14 +532,19 @@ export default {
           serviceName = body.service || '';
           options = body.options || {};
 
-          if (body.fileBase64 && typeof body.fileBase64 === 'string') {
+          if (Array.isArray(body.filesBase64) && body.filesBase64.length > 0) {
+            inputBuffers = body.filesBase64.map((b64: string) => base64ToUint8Array(b64));
+            inputBuffer = inputBuffers[0];
+          } else if (body.fileBase64 && typeof body.fileBase64 === 'string') {
             inputBuffer = base64ToUint8Array(body.fileBase64);
+            inputBuffers = [inputBuffer];
           }
         } else {
           serviceName = url.searchParams.get('service') || '';
           const ab = await request.arrayBuffer();
           if (ab.byteLength > 0) {
             inputBuffer = new Uint8Array(ab);
+            inputBuffers = [inputBuffer];
           }
         }
 
@@ -488,11 +556,16 @@ export default {
           return jsonResponse({ success: false, service: serviceName, errorCode: 'UNSUPPORTED_SERVICE', message: `Service '${serviceName}' is not enabled in Worker prototype.` }, 400);
         }
 
-        if (!inputBuffer || inputBuffer.length === 0) {
+        if ((!inputBuffers || inputBuffers.length === 0) && (!inputBuffer || inputBuffer.length === 0)) {
           return jsonResponse({ success: false, service: serviceName, errorCode: 'EMPTY_PAYLOAD', message: 'No file data received.' }, 400);
         }
 
-        const result = await executeWorkerService(serviceName as WorkerServiceName, inputBuffer, options);
+        const targetInput =
+          (serviceName === 'jpg-to-pdf' || serviceName === 'png-to-pdf') && inputBuffers
+            ? (inputBuffers.length === 1 ? inputBuffers[0] : inputBuffers)
+            : inputBuffer!;
+
+        const result = await executeWorkerService(serviceName as WorkerServiceName, targetInput as any, options);
         const executionTimeMs = Math.round(performance.now() - startTime);
 
         if (url.searchParams.get('format') === 'binary' || request.headers.get('Accept') === 'application/pdf') {

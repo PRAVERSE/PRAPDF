@@ -2512,6 +2512,19 @@ a {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
+.ilove-file-card.dragging {
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: var(--pra-primary);
+  transform: scale(0.98);
+}
+
+.ilove-file-card.drag-over {
+  border-color: var(--pra-primary);
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.35);
+}
+
 .file-card-order-badge {
   position: absolute;
   top: 8px;
@@ -3349,4 +3362,277 @@ a {
   color: var(--pra-text-primary);
   transform: translateY(-1px);
 }
+
+/* ==========================================================================
+   Universal Processing Progress System (All 30 Services)
+   ========================================================================== */
+
+.pra-processing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 20px;
+  animation: praFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pra-processing-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--pra-bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 30px 26px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: praCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pra-processing-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pra-processing-icon-wrapper {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pra-processing-spinner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pra-spinner-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+  animation: praSpin 1.4s linear infinite;
+}
+
+.pra-spinner-circle-bg {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.pra-spinner-circle {
+  stroke: var(--pra-primary);
+  stroke-dasharray: 85, 140;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  transition: stroke 0.3s ease;
+}
+
+.pra-processing-spinner.is-success .pra-spinner-circle {
+  stroke: var(--pra-success) !important;
+}
+
+.pra-processing-spinner.is-error .pra-spinner-circle {
+  stroke: var(--pra-error) !important;
+}
+
+.pra-processing-glyph {
+  position: relative;
+  z-index: 2;
+  color: var(--pra-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pra-processing-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.pra-processing-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--pra-text-primary);
+  margin: 0 0 4px 0;
+  font-family: var(--pra-font-sans);
+  letter-spacing: -0.01em;
+}
+
+.pra-processing-status {
+  font-size: 0.875rem;
+  color: var(--pra-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pra-processing-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pra-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  font-family: var(--pra-font-mono);
+  color: var(--pra-text-muted);
+}
+
+.pra-progress-indicator-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pra-progress-indicator-label::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pra-primary);
+  box-shadow: 0 0 8px var(--pra-primary);
+  animation: praPulseDot 1.5s ease-in-out infinite;
+}
+
+.pra-progress-percent {
+  font-weight: 600;
+  color: var(--pra-text-primary);
+}
+
+.pra-progress-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.pra-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563EB, #3B82F6);
+  border-radius: 9999px;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s;
+}
+
+.pra-progress-fill.is-success {
+  background: linear-gradient(90deg, #10B981, #34D399) !important;
+}
+
+.pra-progress-fill.is-error {
+  background: var(--pra-error) !important;
+}
+
+/* Honest indeterminate shimmer - no fake percentages */
+.pra-progress-track.is-indeterminate .pra-progress-fill {
+  width: 45% !important;
+  background: linear-gradient(90deg, transparent, #3B82F6, transparent) !important;
+  animation: praIndeterminateShimmer 1.4s ease-in-out infinite;
+}
+
+.pra-progress-detail {
+  font-size: 0.75rem;
+  font-family: var(--pra-font-mono);
+  color: var(--pra-text-muted);
+  text-align: right;
+  line-height: 1.2;
+}
+
+.pra-processing-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Action button loading state */
+.btn-ilove-action.is-loading {
+  opacity: 0.85 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn-ilove-action.is-loading .btn-arrow-cue {
+  display: none !important;
+}
+
+.btn-ilove-action .btn-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: praSpin 0.75s linear infinite;
+}
+
+/* Workspace locked state during active processing */
+.workspace-locked {
+  pointer-events: none !important;
+  user-select: none !important;
+  opacity: 0.6;
+  filter: grayscale(0.2);
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+/* Animations */
+@keyframes praFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes praCardPop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes praSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes praPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+@keyframes praIndeterminateShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+@media (max-width: 640px) {
+  .pra-processing-card {
+    padding: 22px 18px;
+    gap: 16px;
+  }
+  .pra-processing-icon-wrapper {
+    width: 46px;
+    height: 46px;
+  }
+}
+
 

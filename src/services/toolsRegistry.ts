@@ -53,6 +53,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.jpg', '.jpeg'],
+    multiple: true,
     popular: true,
   },
   {
@@ -63,6 +64,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.png'],
+    multiple: true,
   },
   {
     id: 'images-to-pdf',

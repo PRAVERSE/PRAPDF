@@ -8,51 +8,69 @@ import JSZip from 'jszip';
 import { WorkerEngineResult } from './types';
 
 export async function processMergePdfWorker(
-  inputBuffer: Uint8Array,
-  options?: any
+  inputBuffer: Uint8Array | Uint8Array[],
+  options?: {
+    outputFileName?: string;
+  }
 ): Promise<WorkerEngineResult> {
-  const isZip =
-    inputBuffer.length >= 4 &&
-    inputBuffer[0] === 0x50 &&
-    inputBuffer[1] === 0x4b &&
-    inputBuffer[2] === 0x03 &&
-    inputBuffer[3] === 0x04;
-
   const pdfBuffers: { filename: string; buffer: Uint8Array }[] = [];
 
-  if (isZip) {
-    const zip = await JSZip.loadAsync(inputBuffer);
-    const files = Object.keys(zip.files)
-      .filter((name) => !zip.files[name].dir && name.toLowerCase().endsWith('.pdf') && !name.startsWith('__MACOSX/'))
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-
-    for (const name of files) {
-      const data = await zip.files[name].async('uint8array');
-      pdfBuffers.push({ filename: name, buffer: data });
-    }
+  if (Array.isArray(inputBuffer)) {
+    // Array of files passed directly
+    inputBuffer.forEach((buf, idx) => {
+      pdfBuffers.push({ filename: `document_${idx + 1}.pdf`, buffer: buf });
+    });
   } else {
-    // Single PDF supplied
-    pdfBuffers.push({ filename: 'document.pdf', buffer: inputBuffer });
+    // Single buffer: check if ZIP archive
+    const isZip =
+      inputBuffer.length >= 4 &&
+      inputBuffer[0] === 0x50 &&
+      inputBuffer[1] === 0x4b &&
+      inputBuffer[2] === 0x03 &&
+      inputBuffer[3] === 0x04;
+
+    if (isZip) {
+      const zip = await JSZip.loadAsync(inputBuffer);
+      const files = Object.keys(zip.files)
+        .filter((name) => !zip.files[name].dir && name.toLowerCase().endsWith('.pdf') && !name.startsWith('__MACOSX/'))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+      for (const name of files) {
+        const data = await zip.files[name].async('uint8array');
+        pdfBuffers.push({ filename: name, buffer: data });
+      }
+    } else {
+      // Single PDF supplied
+      pdfBuffers.push({ filename: 'document.pdf', buffer: inputBuffer });
+    }
   }
 
-  if (pdfBuffers.length === 0) {
-    throw new Error('No valid PDF files found to merge.');
+  if (pdfBuffers.length < 1) {
+    throw new Error('No PDF files provided to merge.');
   }
 
   const mergedDoc = await PDFDocument.create();
   let totalPages = 0;
+  const mergedDocsInfo: { filename: string; pageCount: number }[] = [];
 
-  for (const item of pdfBuffers) {
+  for (let i = 0; i < pdfBuffers.length; i++) {
+    const item = pdfBuffers[i];
     try {
       const srcDoc = await PDFDocument.load(item.buffer, { ignoreEncryption: true });
       const indices = srcDoc.getPageIndices();
+      if (indices.length === 0) {
+        throw new Error('Document contains 0 pages.');
+      }
       const copiedPages = await mergedDoc.copyPages(srcDoc, indices);
       for (const page of copiedPages) {
         mergedDoc.addPage(page);
         totalPages++;
       }
+      mergedDocsInfo.push({ filename: item.filename, pageCount: indices.length });
     } catch (err: any) {
-      console.warn(`[MERGE_WORKER] Failed to parse document ${item.filename}: ${err?.message}`);
+      throw new Error(
+        `Failed to parse document ${i + 1} (${item.filename}): ${err?.message || 'Invalid or corrupted PDF document.'}`
+      );
     }
   }
 
@@ -61,16 +79,21 @@ export async function processMergePdfWorker(
   }
 
   const outputBytes = await mergedDoc.save({ useObjectStreams: true });
+  const totalInputBytes = Array.isArray(inputBuffer)
+    ? inputBuffer.reduce((sum, b) => sum + b.length, 0)
+    : inputBuffer.length;
 
   return {
     service: 'merge-pdf',
     outputBuffer: outputBytes,
     mimeType: 'application/pdf',
-    outputFileName: 'merged.pdf',
+    outputFileName: options?.outputFileName || 'merged.pdf',
     metadata: {
       sourceDocCount: pdfBuffers.length,
+      mergedFilesCount: pdfBuffers.length,
       totalPageCount: totalPages,
-      inputSizeBytes: inputBuffer.length,
+      documentsMerged: mergedDocsInfo,
+      inputSizeBytes: totalInputBytes,
       outputSizeBytes: outputBytes.length,
     },
   };

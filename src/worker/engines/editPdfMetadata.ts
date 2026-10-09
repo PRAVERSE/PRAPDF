@@ -18,6 +18,7 @@ export async function processEditPdfMetadataWorker(
     keywords?: string[] | string;
     creator?: string;
     producer?: string;
+    outputFileName?: string;
   }
 ): Promise<WorkerEngineResult> {
   const doc = await PDFDocument.load(inputBuffer, { ignoreEncryption: true });
@@ -62,13 +63,15 @@ export async function processEditPdfMetadataWorker(
     updated.producer = options.producer;
   }
 
+  doc.setModificationDate(new Date());
+
   const outBytes = await doc.save({ useObjectStreams: true });
 
   return {
     service: 'edit-pdf-metadata',
     outputBuffer: outBytes,
     mimeType: 'application/pdf',
-    outputFileName: 'metadata_updated.pdf',
+    outputFileName: options?.outputFileName || 'metadata_updated.pdf',
     metadata: {
       pageCount: totalPages,
       metadataUpdated: updated,

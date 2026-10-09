@@ -9,7 +9,7 @@ import { ToolDefinition, getToolVisualMeta } from '../services/toolsRegistry';
 import { getToolIcon } from './icons';
 
 export function renderToolCard(tool: ToolDefinition): string {
-  const targetHref = tool.id === 'full-pdf-editing' ? '#/editor' : `#/tools/${tool.id}`;
+  const targetHref = `#/tools/${tool.id}`;
   const visual = getToolVisualMeta(tool.id);
   const badgeHtml = visual.badge
     ? `<span class="tool-card-badge" style="background-color: ${visual.accentBg}; color: ${visual.accentColor}; border: 1px solid ${visual.accentColor}40;">${visual.badge}</span>`

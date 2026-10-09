@@ -16,6 +16,13 @@ export interface ResultCardOptions {
   reductionRatio?: string;
   toolId?: string;
   toolTitle?: string;
+  textResult?: {
+    text: string;
+    wordCount?: number;
+    characterCount?: number;
+    pageCount?: number;
+    hasText?: boolean;
+  };
   onReset: () => void;
 }
 
@@ -37,10 +44,19 @@ export class ResultCard {
       sizeDisplay = formatBytes(options.data.byteLength);
     } else if (options.data instanceof Blob) {
       sizeDisplay = formatBytes(options.data.size);
+    } else if (typeof options.data === 'string') {
+      sizeDisplay = `${options.data.length.toLocaleString()} chars`;
     }
 
     const hasCompression = !!(options.originalSize && options.newSize && options.originalSize > options.newSize);
     const origSizeStr = options.originalSize ? formatBytes(options.originalSize) : '';
+
+    const textContent = typeof options.data === 'string' ? options.data : options.textResult?.text || '';
+    const isTextExtract = options.toolId === 'extract-pdf-text' || !!options.textResult || typeof options.data === 'string';
+    const hasText = options.textResult?.hasText !== undefined ? options.textResult.hasText : textContent.trim().length > 0;
+    const wordCount = options.textResult?.wordCount ?? (textContent.trim() ? textContent.split(/\s+/).filter(Boolean).length : 0);
+    const charCount = options.textResult?.characterCount ?? textContent.length;
+    const pageCount = options.textResult?.pageCount;
 
     this.container.innerHTML = `
       <div class="ilove-result-view">
@@ -73,12 +89,50 @@ export class ResultCard {
         `
             : `
           <div class="result-file-pill">
-            <span class="file-pill-icon">📄</span>
+            <span class="file-pill-icon">${isTextExtract ? '📝' : '📄'}</span>
             <span class="file-pill-name">${options.filename}</span>
             <span class="file-pill-sep">•</span>
             <span class="file-pill-size">${sizeDisplay}</span>
           </div>
         `
+        }
+
+        ${
+          isTextExtract && !hasText
+            ? `
+          <div class="result-warning-banner" style="margin: 1.5rem auto; max-width: 600px; padding: 1.25rem; border-radius: 10px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #b45309; text-align: left;">
+            <div style="font-weight: 700; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1rem;">
+              <span>⚠️</span> No Extractable Text Found
+            </div>
+            <div style="font-size: 0.88rem; line-height: 1.55; color: #92400e;">
+              This PDF appears to contain scanned image pages or rasterized artwork without an embedded digital font/text layer.
+              Standard text extraction cannot read text stored purely as pixels.
+              Please use our <strong><a href="#/tools/ocr-pdf" style="color: #b45309; text-decoration: underline; font-weight: 700;">OCR PDF (Searchable)</a></strong> tool to recognize text from scanned documents via optical character recognition.
+            </div>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          isTextExtract && hasText
+            ? `
+          <div class="result-text-stats-pill" style="display: flex; gap: 1rem; justify-content: center; align-items: center; margin: 1rem 0; font-size: 0.875rem; color: var(--pra-text-secondary);">
+            <span>📊 <strong>${charCount.toLocaleString()}</strong> characters</span>
+            <span style="opacity: 0.4;">•</span>
+            <span>📝 <strong>${wordCount.toLocaleString()}</strong> words</span>
+            ${pageCount ? `<span style="opacity: 0.4;">•</span><span>📄 <strong>${pageCount}</strong> pages</span>` : ''}
+          </div>
+
+          <div class="result-textarea-box" style="margin: 1.5rem auto; max-width: 680px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="font-size: 0.825rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pra-text-secondary);">Extracted Text Content</span>
+              <span style="font-size: 0.775rem; color: var(--pra-text-muted);">Selectable &amp; ready to copy</span>
+            </div>
+            <textarea id="rc-extracted-textarea" class="form-input font-mono" readonly style="width: 100%; height: 240px; resize: vertical; font-size: 0.85rem; line-height: 1.6; padding: 1rem; border-radius: 8px; border: 1px solid var(--pra-border-color, #e2e8f0); background: var(--pra-bg-surface, #ffffff); color: var(--pra-text-primary, #0f172a); white-space: pre-wrap;">${textContent}</textarea>
+          </div>
+        `
+            : ''
         }
 
         <!-- Primary Giant Download Button (iLovePDF signature) -->
@@ -96,14 +150,14 @@ export class ResultCard {
         <!-- Secondary Controls -->
         <div class="result-secondary-row">
           <button type="button" class="btn btn-secondary" id="rc-reset-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="1 4 1 10 7 10"></polyline>
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
             </svg>
             Process Another File
           </button>
           ${
-            typeof options.data === 'string'
+            isTextExtract && hasText
               ? `
             <button type="button" class="btn btn-secondary" id="rc-copy-text-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -148,9 +202,14 @@ export class ResultCard {
     dlBtn.addEventListener('click', () => {
       if (typeof options.data === 'string') {
         const blob = new Blob([options.data], { type: 'text/plain;charset=utf-8' });
-        triggerFileDownload(blob, options.filename);
+        triggerFileDownload(blob, options.filename, 'text/plain;charset=utf-8');
+      } else if (options.data instanceof Blob && options.filename.toLowerCase().endsWith('.txt')) {
+        triggerFileDownload(options.data, options.filename, 'text/plain;charset=utf-8');
       } else {
-        triggerFileDownload(options.data, options.filename);
+        const isPdf = options.filename.toLowerCase().endsWith('.pdf');
+        const isZip = options.filename.toLowerCase().endsWith('.zip');
+        const mimeType = isPdf ? 'application/pdf' : isZip ? 'application/zip' : undefined;
+        triggerFileDownload(options.data, options.filename, mimeType);
       }
     });
 
@@ -159,10 +218,10 @@ export class ResultCard {
       options.onReset();
     });
 
-    if (copyBtn && typeof options.data === 'string') {
+    if (copyBtn && textContent) {
       copyBtn.addEventListener('click', async () => {
         try {
-          await navigator.clipboard.writeText(options.data as string);
+          await navigator.clipboard.writeText(textContent);
           const lbl = this.container.querySelector('#rc-copy-label');
           if (lbl) {
             lbl.textContent = 'Copied to Clipboard!';

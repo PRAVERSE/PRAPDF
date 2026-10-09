@@ -37,6 +37,11 @@ export class Dropzone {
     return this.selectedFiles;
   }
 
+  public setFiles(files: File[]): void {
+    this.selectedFiles = [...files];
+    this.renderFileList();
+  }
+
   public clearFiles(): void {
     this.selectedFiles = [];
     this.renderFileList();
@@ -168,8 +173,13 @@ export class Dropzone {
     this.hideTooLargeCard();
     const validBatch: File[] = [];
 
+    const existingTotal = this.config.multiple
+      ? this.selectedFiles.reduce((acc, f) => acc + f.size, 0)
+      : 0;
+    let batchTotal = 0;
+
     for (const file of incoming) {
-      // Immediate 50 MB check
+      // Immediate 50 MB per-file check
       if (file.size > MAX_FILE_SIZE_BYTES) {
         const formatted = formatBytes(file.size);
         this.flashError(`"${file.name}" exceeds the 50 MB limit.`);
@@ -177,10 +187,21 @@ export class Dropzone {
         if (this.config.onFileTooLarge) {
           this.config.onFileTooLarge(file.name, formatted);
         } else {
-          this.config.onError(`"${file.name}" is ${formatted}. Maximum file size is 50 MB per file.`);
+          this.config.onError(`"${file.name}" is ${formatted}. Maximum file size is 50 MB.`);
         }
         return;
       }
+
+      // Cumulative 50 MB total check across all selected files
+      if (existingTotal + batchTotal + file.size > MAX_FILE_SIZE_BYTES) {
+        const combinedSize = formatBytes(existingTotal + batchTotal + file.size);
+        this.flashError(`Total upload size exceeds 50 MB (${combinedSize}).`);
+        this.config.onError(
+          `Total upload size exceeds the 50 MB limit (${combinedSize}). Please select files under 50 MB total.`
+        );
+        return;
+      }
+      batchTotal += file.size;
 
       const validation = await validateUploadFile(file, this.config.allowedExtensions);
       if (!validation.valid) {
@@ -260,10 +281,14 @@ export class Dropzone {
                 : ''
             }
             <div class="file-doc-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              ${
+                file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp)$/i.test(file.name)
+                  ? `<img src="${URL.createObjectURL(file)}" alt="${file.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />`
+                  : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
-              </svg>
+              </svg>`
+              }
             </div>
             <div class="file-meta-info">
               <div class="file-preview-name" title="${file.name}">${file.name}</div>

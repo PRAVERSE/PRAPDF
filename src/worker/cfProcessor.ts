@@ -116,9 +116,11 @@ export function base64ToUint8Array(base64: string): Uint8Array {
 
 export async function executeWorkerService(
   service: WorkerServiceName,
-  inputBuffer: Uint8Array,
+  inputBuffer: Uint8Array | Uint8Array[],
   options?: any
 ): Promise<WorkerEngineResult> {
+  const singleBuffer = Array.isArray(inputBuffer) ? inputBuffer[0] : inputBuffer;
+
   switch (service) {
     // Phase 1 (8)
     case 'jpg-to-pdf':
@@ -126,55 +128,55 @@ export async function executeWorkerService(
     case 'merge-pdf':
       return await processMergePdfWorker(inputBuffer, options);
     case 'split-pdf':
-      return await processSplitPdfWorker(inputBuffer, options);
+      return await processSplitPdfWorker(singleBuffer, options);
     case 'compress-pdf':
-      return await processCompressPdfWorker(inputBuffer, options);
+      return await processCompressPdfWorker(singleBuffer, options);
     case 'word-to-pdf':
-      return await processWordToPdfWorker(inputBuffer, options);
+      return await processWordToPdfWorker(singleBuffer, options);
     case 'pdf-to-word':
-      return await processPdfToWordWorker(inputBuffer, options);
+      return await processPdfToWordWorker(singleBuffer, options);
     case 'watermark-pdf':
-      return await processWatermarkPdfWorker(inputBuffer, options);
+      return await processWatermarkPdfWorker(singleBuffer, options);
     case 'full-pdf-editing':
-      return await processFullPdfEditingWorker(inputBuffer, options);
+      return await processFullPdfEditingWorker(singleBuffer, options);
 
     // Phase 2 (18)
     case 'png-to-pdf':
       return await processPngToPdfWorker(inputBuffer, options);
     case 'rotate-pdf':
-      return await processRotatePdfWorker(inputBuffer, options);
+      return await processRotatePdfWorker(singleBuffer, options);
     case 'crop-pdf':
-      return await processCropPdfWorker(inputBuffer, options);
+      return await processCropPdfWorker(singleBuffer, options);
     case 'organize-pdf':
-      return await processOrganizePdfWorker(inputBuffer, options);
+      return await processOrganizePdfWorker(singleBuffer, options);
     case 'delete-pdf-pages':
-      return await processDeletePdfPagesWorker(inputBuffer, options);
+      return await processDeletePdfPagesWorker(singleBuffer, options);
     case 'extract-pdf-pages':
-      return await processExtractPdfPagesWorker(inputBuffer, options);
+      return await processExtractPdfPagesWorker(singleBuffer, options);
     case 'add-page-numbers':
-      return await processAddPageNumbersWorker(inputBuffer, options);
+      return await processAddPageNumbersWorker(singleBuffer, options);
     case 'password-protect-pdf':
-      return await processProtectPdfWorker(inputBuffer, options);
+      return await processProtectPdfWorker(singleBuffer, options);
     case 'unlock-pdf':
-      return await processUnlockPdfWorker(inputBuffer, options);
+      return await processUnlockPdfWorker(singleBuffer, options);
     case 'extract-pdf-text':
-      return await processExtractPdfTextWorker(inputBuffer, options);
+      return await processExtractPdfTextWorker(singleBuffer, options);
     case 'pdf-to-markdown':
-      return await processPdfToMarkdownWorker(inputBuffer, options);
+      return await processPdfToMarkdownWorker(singleBuffer, options);
     case 'edit-pdf-metadata':
-      return await processEditPdfMetadataWorker(inputBuffer, options);
+      return await processEditPdfMetadataWorker(singleBuffer, options);
     case 'rtf-conversion':
-      return await processRtfConversionWorker(inputBuffer, options);
+      return await processRtfConversionWorker(singleBuffer, options);
     case 'excel-to-pdf':
-      return await processExcelToPdfWorker(inputBuffer, options);
+      return await processExcelToPdfWorker(singleBuffer, options);
     case 'powerpoint-to-pdf':
-      return await processPowerpointToPdfWorker(inputBuffer, options);
+      return await processPowerpointToPdfWorker(singleBuffer, options);
     case 'html-to-pdf':
-      return await processHtmlToPdfWorker(inputBuffer, options);
+      return await processHtmlToPdfWorker(singleBuffer, options);
     case 'txt-to-pdf':
-      return await processTxtToPdfWorker(inputBuffer, options);
+      return await processTxtToPdfWorker(singleBuffer, options);
     case 'markdown-to-pdf':
-      return await processMarkdownToPdfWorker(inputBuffer, options);
+      return await processMarkdownToPdfWorker(singleBuffer, options);
 
     default:
       throw new Error(`Unsupported service: ${service}`);

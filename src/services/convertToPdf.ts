@@ -18,6 +18,7 @@ import * as XLSX from 'xlsx';
 import MarkdownIt from 'markdown-it';
 import JSZip from 'jszip';
 import { validateFileSize } from './core/fileValidator';
+import { postFormDataWithProgress } from './core/networkClient';
 
 const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
 
@@ -29,85 +30,134 @@ export interface ConvertOptions {
 }
 
 /**
- * Tool 1: JPG to PDF
- * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
+ * Client-side in-memory fallback helper for JPG/PNG to PDF (zero-watermark, pure pdf-lib)
  */
-export async function convertJpgToPdf(
-  file: File,
+async function convertImagesClient(
+  fileList: File[],
+  isPng: boolean,
   options: ConvertOptions = {}
 ): Promise<Uint8Array> {
-  const check = validateFileSize(file);
-  if (!check.valid) throw new Error(check.error);
-
-  options.onProgress?.(15, 'Uploading JPG to Cloudflare Worker...');
-
-  const formData = new FormData();
-  formData.append('service', 'jpg-to-pdf');
-  formData.append('file', file);
-  if (options.pageSize || options.orientation || options.margin) {
-    formData.append(
-      'options',
-      JSON.stringify({
-        pageSize: options.pageSize,
-        orientation: options.orientation,
-        margin: options.margin,
-      })
+  const doc = await PDFDocument.create();
+  const total = fileList.length;
+  for (let i = 0; i < total; i++) {
+    const file = fileList[i];
+    options.onProgress?.(
+      Math.round(50 + ((i + 1) / total) * 45),
+      `Embedding image ${i + 1} of ${total}...`
     );
+    const buffer = await file.arrayBuffer();
+    const image = isPng ? await doc.embedPng(buffer) : await doc.embedJpg(buffer);
+    const dims = image.scale(1);
+    const page = doc.addPage([dims.width, dims.height]);
+    page.drawImage(image, { x: 0, y: 0, width: dims.width, height: dims.height });
   }
-
-  options.onProgress?.(45, 'Processing in Cloudflare Worker runtime...');
-  const response = await fetch('/api/v1/cf/process', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    let errorDetail = `Processing failed with HTTP ${response.status}`;
-    try {
-      const errJson = await response.json();
-      if (errJson?.message) {
-        errorDetail = errJson.message;
-      }
-    } catch {
-      // ignore json parse error
-    }
-    throw new Error(`Cloudflare Worker error: ${errorDetail}`);
-  }
-
-  options.onProgress?.(85, 'Receiving generated PDF...');
-  const json = await response.json();
-  if (!json.success || !json.outputBase64) {
-    throw new Error(json.message || 'Worker processing failed to return valid PDF data.');
-  }
-
-  // Convert Base64 to Uint8Array
-  const binaryString = atob(json.outputBase64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
   options.onProgress?.(100, 'Complete');
-  return bytes;
+  return await doc.save({ useObjectStreams: true });
 }
 
 /**
- * Tool 2: PNG to PDF
+ * Tool 1: JPG to PDF (Supports single or multiple images into one PDF)
+ * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
+ */
+export async function convertJpgToPdf(
+  files: File | File[],
+  options: ConvertOptions = {}
+): Promise<Uint8Array> {
+  const fileList = Array.isArray(files) ? files : [files];
+  if (fileList.length === 0) throw new Error('No JPEG image files provided.');
+
+  let totalBytes = 0;
+  for (const file of fileList) {
+    const check = validateFileSize(file);
+    if (!check.valid) throw new Error(check.error);
+    totalBytes += file.size;
+  }
+
+  if (totalBytes > 50 * 1024 * 1024) {
+    throw new Error(
+      `Total upload size exceeds the 50 MB limit (${(totalBytes / (1024 * 1024)).toFixed(2)} MB). Please select files under 50 MB total.`
+    );
+  }
+
+  options.onProgress?.(15, `Preparing ${fileList.length} JPG image${fileList.length > 1 ? 's' : ''}...`);
+
+  const formData = new FormData();
+  formData.append('service', 'jpg-to-pdf');
+  for (const file of fileList) {
+    formData.append('files', file);
+    formData.append('file', file);
+  }
+  if (options.pageSize || options.orientation || options.margin) {
+    formData.append(
+      'options',
+      JSON.stringify({
+        pageSize: options.pageSize,
+        orientation: options.orientation,
+        margin: options.margin,
+      })
+    );
+  }
+  options.onProgress?.(15, `Preparing ${fileList.length} JPG image${fileList.length > 1 ? 's' : ''}…`);
+
+  try {
+    const json = await postFormDataWithProgress<any>('/api/v1/cf/process', formData, {
+      onProgress: options.onProgress,
+      serviceName: 'jpg-to-pdf',
+    });
+
+    if (!json.success || !json.outputBase64) {
+      throw new Error(json.message || 'Worker processing failed to return valid PDF data.');
+    }
+
+    options.onProgress?.(95, 'Preparing download…');
+    const binaryString = atob(json.outputBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    options.onProgress?.(100, 'Completed successfully!');
+    return bytes;
+  } catch (workerErr: any) {
+    console.warn('Worker endpoint unavailable, using in-browser PDF engine:', workerErr);
+    options.onProgress?.(50, 'Generating PDF in browser…');
+    return await convertImagesClient(fileList, false, options);
+  }
+}
+
+/**
+ * Tool 2: PNG to PDF (Supports single or multiple images into one PDF)
  * Production Processing: Routes via Cloudflare Worker endpoint POST /api/v1/cf/process
  */
 export async function convertPngToPdf(
-  file: File,
+  files: File | File[],
   options: ConvertOptions = {}
 ): Promise<Uint8Array> {
-  const check = validateFileSize(file);
-  if (!check.valid) throw new Error(check.error);
+  const fileList = Array.isArray(files) ? files : [files];
+  if (fileList.length === 0) throw new Error('No PNG image files provided.');
 
-  options.onProgress?.(15, 'Uploading PNG to Cloudflare Worker...');
+  let totalBytes = 0;
+  for (const file of fileList) {
+    const check = validateFileSize(file);
+    if (!check.valid) throw new Error(check.error);
+    totalBytes += file.size;
+  }
+
+  if (totalBytes > 50 * 1024 * 1024) {
+    throw new Error(
+      `Total upload size exceeds the 50 MB limit (${(totalBytes / (1024 * 1024)).toFixed(2)} MB). Please select files under 50 MB total.`
+    );
+  }
+
+  options.onProgress?.(5, 'Validating documents…');
 
   const formData = new FormData();
   formData.append('service', 'png-to-pdf');
-  formData.append('file', file);
+  for (const file of fileList) {
+    formData.append('files', file);
+    formData.append('file', file);
+  }
   if (options.pageSize || options.orientation || options.margin) {
     formData.append(
       'options',
@@ -119,40 +169,31 @@ export async function convertPngToPdf(
     );
   }
 
-  options.onProgress?.(45, 'Processing PNG in Cloudflare Worker runtime...');
-  const response = await fetch('/api/v1/cf/process', {
-    method: 'POST',
-    body: formData,
-  });
+  try {
+    const json = await postFormDataWithProgress<any>('/api/v1/cf/process', formData, {
+      onProgress: options.onProgress,
+      serviceName: 'png-to-pdf',
+    });
 
-  if (!response.ok) {
-    let errorDetail = `Processing failed with HTTP ${response.status}`;
-    try {
-      const errJson = await response.json();
-      if (errJson?.message) {
-        errorDetail = errJson.message;
-      }
-    } catch {
-      // ignore json parse error
+    if (!json.success || !json.outputBase64) {
+      throw new Error(json.message || 'Worker processing failed to return valid PDF data.');
     }
-    throw new Error(`Cloudflare Worker error: ${errorDetail}`);
-  }
 
-  options.onProgress?.(85, 'Receiving generated PDF...');
-  const json = await response.json();
-  if (!json.success || !json.outputBase64) {
-    throw new Error(json.message || 'Worker processing failed to return valid PDF data.');
-  }
+    options.onProgress?.(95, 'Preparing download…');
+    const binaryString = atob(json.outputBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
 
-  const binaryString = atob(json.outputBase64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+    options.onProgress?.(100, 'Completed successfully!');
+    return bytes;
+  } catch (workerErr: any) {
+    console.warn('Worker endpoint unavailable, using in-browser PDF engine:', workerErr);
+    options.onProgress?.(50, 'Generating PDF in browser…');
+    return await convertImagesClient(fileList, true, options);
   }
-
-  options.onProgress?.(100, 'Complete');
-  return bytes;
 }
 
 /**
