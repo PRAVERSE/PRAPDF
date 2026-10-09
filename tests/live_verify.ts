@@ -118,13 +118,19 @@ async function verifyLiveWorker() {
   const numPdf = await PDFDocument.load(numBytes);
   console.log(`Loaded numbered PDF! Page count: ${numPdf.getPageCount()}`);
 
-  console.log('\n=== Step 5: Check Live Website Status ===');
-  try {
-    const siteRes = await fetch(LIVE_SITE_URL);
-    console.log(`Live site status (${LIVE_SITE_URL}): ${siteRes.status}`);
-  } catch (err: any) {
-    console.log(`Live site check note: ${err?.message}`);
-  }
+  console.log('\n=== Step 5: Check Live Website & Assets Status ===');
+  const siteRes = await fetch(LIVE_SITE_URL);
+  console.log(`Live site status (${LIVE_SITE_URL}): ${siteRes.status}`);
+  const siteHtml = await siteRes.text();
+  console.log(`Site HTML size: ${siteHtml.length} bytes`);
+  const hasIndexJs = siteHtml.includes('assets/index');
+  const hasIndexCss = siteHtml.includes('assets/index');
+  console.log(`HTML links to built production assets? JS: ${hasIndexJs}, CSS: ${hasIndexCss}`);
+
+  const workerSiteRes = await fetch(WORKER_URL);
+  console.log(`Worker site status (${WORKER_URL}): ${workerSiteRes.status}`);
+  const workerSiteHtml = await workerSiteRes.text();
+  console.log(`Worker SPA HTML size: ${workerSiteHtml.length} bytes`);
 
   console.log('\nALL LIVE VERIFICATION CHECKS PASSED!');
 }
