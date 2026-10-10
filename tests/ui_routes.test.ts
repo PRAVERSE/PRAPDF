@@ -1,41 +1,37 @@
 /**
- * PRA PDF — Complete UI Routes and 30 Tools Verification Test Suite
- * Validates registry completeness, 50 MB strict limits, routes, and categories.
+ * PRA PDF — Complete UI Routes and 56 Tools Verification Test Suite
+ * Validates registry completeness, 50 MB strict limits, routes, categories, and status reconciliation.
  */
 
 import { describe, it, expect } from 'vitest';
-import { TOOLS_REGISTRY, findToolById, CATEGORY_LABELS } from '../src/services/toolsRegistry';
+import { TOOLS_REGISTRY, findToolById, CATEGORY_LABELS, getLiveTools, getImplementedTools, getComingSoonTools } from '../src/services/toolsRegistry';
 import { MAX_FILE_SIZE_BYTES, validateFileSize } from '../src/services/core/fileValidator';
 import { ICONS, getToolIcon } from '../src/components/icons';
 
 describe('PRA PDF Master Specification Verification', () => {
-  it('contains at least 30 baseline tools in the expanding 56-tool registry', () => {
-    expect(TOOLS_REGISTRY.length).toBeGreaterThanOrEqual(30);
-    // Verify each service number 1 to 30 is present without gaps
+  it('contains all 56 canonical tools numbered 1 to 56', () => {
+    expect(TOOLS_REGISTRY.length).toBe(56);
     const serviceNumbers = TOOLS_REGISTRY.map((t) => t.serviceNumber);
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 1; i <= 56; i++) {
       expect(serviceNumbers).toContain(i);
     }
   });
 
-  it('verifies exact tool IDs for all 30 tools', () => {
-    const expectedIds = [
-      // 1-9: Document -> PDF
+  it('reconciles exact counts: 17 Live, 19 Implemented, 20 Coming Soon', () => {
+    const live = getLiveTools();
+    const implemented = getImplementedTools();
+    const comingSoon = getComingSoonTools();
+
+    expect(live.length).toBe(17);
+    expect(implemented.length).toBe(19);
+    expect(comingSoon.length).toBe(20);
+    expect(live.length + implemented.length + comingSoon.length).toBe(56);
+  });
+
+  it('verifies all 17 Verified Live production services', () => {
+    const expectedLiveIds = [
       'jpg-to-pdf',
       'png-to-pdf',
-      'images-to-pdf',
-      'word-to-pdf',
-      'excel-to-pdf',
-      'powerpoint-to-pdf',
-      'html-to-pdf',
-      'txt-to-pdf',
-      'markdown-to-pdf',
-      // 10-13: PDF -> Other Formats
-      'pdf-to-jpg',
-      'pdf-to-png',
-      'pdf-to-markdown',
-      'pdf-to-word',
-      // 14-20: PDF Organization
       'merge-pdf',
       'split-pdf',
       'organize-pdf-pages',
@@ -43,35 +39,50 @@ describe('PRA PDF Master Specification Verification', () => {
       'extract-pdf-pages',
       'rotate-pdf',
       'crop-pdf',
-      // 21-24: PDF Optimization & Processing
-      'compress-pdf',
-      'ocr-pdf',
+      'alternate-mix-pdf',
+      'split-pdf-in-half',
+      'n-up-pdf',
+      'flip-pdf',
       'add-page-numbers',
-      'watermark-pdf',
-      // 25-28: PDF Editing & Security
-      'full-pdf-editing',
-      'password-protect-pdf',
-      'unlock-pdf',
+      'delete-pdf-annotations',
       'edit-pdf-metadata',
-      // 29-30: Extract & Other
       'extract-pdf-text',
-      'rtf-conversion',
     ];
 
-    expectedIds.forEach((id) => {
-      const found = findToolById(id);
-      expect(found, `Tool ID "${id}" must exist in registry`).toBeDefined();
+    expectedLiveIds.forEach((id) => {
+      const tool = findToolById(id);
+      expect(tool, `Tool ${id} must exist`).toBeDefined();
+      expect(tool?.status, `Tool ${id} must be marked 'live'`).toBe('live');
     });
   });
 
-  it('supports route aliases for organize-pdf and editor', () => {
+  it('verifies Wave 1 services individually', () => {
+    const wave1Ids = [
+      'delete-pdf-annotations',
+      'flip-pdf',
+      'split-pdf-in-half',
+      'alternate-mix-pdf',
+      'n-up-pdf',
+    ];
+
+    wave1Ids.forEach((id) => {
+      const tool = findToolById(id);
+      expect(tool).toBeDefined();
+      expect(tool?.status).toBe('live');
+    });
+  });
+
+  it('supports route aliases for organize-pdf, editor, and rtf-conversion', () => {
     const organizeDef = findToolById('organize-pdf');
     expect(organizeDef).toBeDefined();
-    expect(organizeDef?.serviceNumber).toBe(16);
+    expect(organizeDef?.id).toBe('organize-pdf-pages');
 
     const editorDef = findToolById('editor');
     expect(editorDef).toBeDefined();
-    expect(editorDef?.serviceNumber).toBe(25);
+    expect(editorDef?.id).toBe('full-pdf-editing');
+
+    const rtfDef = findToolById('rtf-conversion');
+    expect(rtfDef).toBeDefined();
   });
 
   it('verifies strict 50 MB upload limit enforcement', () => {
@@ -90,7 +101,7 @@ describe('PRA PDF Master Specification Verification', () => {
     expect(oversizedResult.error).toContain('50 MB');
   });
 
-  it('verifies that each of the 30 tools has a dedicated SVG icon', () => {
+  it('verifies that every tool in registry has an SVG icon', () => {
     TOOLS_REGISTRY.forEach((tool) => {
       const icon = getToolIcon(tool.id);
       expect(icon).toContain('<svg');
@@ -98,9 +109,10 @@ describe('PRA PDF Master Specification Verification', () => {
     });
   });
 
-  it('verifies all 8 categories + All Tools in category labels', () => {
+  it('verifies all categories in category labels', () => {
     const categories = [
       'all',
+      'live',
       'convert-to-pdf',
       'convert-from-pdf',
       'organize',
@@ -108,7 +120,7 @@ describe('PRA PDF Master Specification Verification', () => {
       'edit',
       'security',
       'extract-manage',
-      'other-conversions',
+      'forms-signatures',
     ];
 
     categories.forEach((cat) => {

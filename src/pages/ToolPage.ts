@@ -121,6 +121,11 @@ export class ToolPage {
   }
 
   public render(): void {
+    if (this.tool.status === 'coming-soon') {
+      this.renderComingSoon();
+      return;
+    }
+
     const isDualInput = ['html-to-pdf', 'markdown-to-pdf', 'txt-to-pdf'].includes(this.tool.id);
     const visual = getToolVisualMeta(this.tool.id);
 
@@ -2780,5 +2785,66 @@ This text will be formatted and paginated into a clean PDF document.
         this.transitionToSelection();
       },
     });
+  }
+
+  private renderComingSoon(): void {
+    const visual = getToolVisualMeta(this.tool.id);
+    this.container.innerHTML = `
+      <div class="tool-runner-container" style="--tool-accent: ${visual.accentColor}; --tool-accent-bg: ${visual.accentBg};">
+        <div class="tool-nav-breadcrumb">
+          <a href="#/tools" class="tool-back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            All PDF Tools
+          </a>
+          <span class="tool-breadcrumb-divider">/</span>
+          <span class="tool-breadcrumb-current">${this.tool.title}</span>
+        </div>
+
+        <div class="tool-header-block" id="tp-hero-header">
+          <div class="tool-header-top-meta">
+            <span class="tool-service-tag" style="background-color: rgba(234, 179, 8, 0.15); color: #EAB308; border: 1px solid rgba(234, 179, 8, 0.3);">
+              SERVICE #${this.tool.serviceNumber} • COMING SOON
+            </span>
+            <span class="tool-category-tag">${this.tool.categoryLabel}</span>
+          </div>
+          <h1 class="tool-title">${this.tool.title}</h1>
+          <p class="tool-subtitle">${this.tool.description}</p>
+        </div>
+
+        <div style="max-width: 680px; margin: 40px auto; background: var(--pra-bg-surface); border: 1px solid var(--pra-border); border-radius: 16px; padding: 40px 32px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+          <div style="width: 72px; height: 72px; border-radius: 18px; background: ${visual.accentBg}; color: ${visual.accentColor}; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+            ${getToolIcon(this.tool.id)}
+          </div>
+          <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 12px; color: var(--pra-text-primary);">
+            In Development — Wave ${this.tool.wave || '2–5'} Roadmap
+          </h3>
+          <p style="color: var(--pra-text-secondary); line-height: 1.6; margin-bottom: 24px; font-size: 0.95rem;">
+            ${this.tool.title} is an officially planned service in the canonical 56-service PRA PDF suite.
+            In strict accordance with our engineering standards, services are only deployed once they pass full lossless verification, zero-AI privacy checks, and 50 MB upload stress tests.
+          </p>
+          <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--pra-border); border-radius: 12px; padding: 16px 20px; margin-bottom: 32px; text-align: left; font-size: 0.9rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: var(--pra-text-secondary);">Accepted Extensions:</span>
+              <strong style="color: var(--pra-text-primary); font-family: monospace;">${this.tool.acceptedExtensions.join(', ')}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: var(--pra-text-secondary);">Target Runtime:</span>
+              <strong style="color: var(--pra-text-primary);">Zero-AI Client / Edge Worker</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--pra-text-secondary);">Upload Limit:</span>
+              <strong style="color: var(--pra-text-primary);">50 MB (Strict Free Limit)</strong>
+            </div>
+          </div>
+          <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+            <a href="#/tools?cat=live" class="btn btn-primary" style="padding: 12px 24px;">Browse 17 Verified Live Tools</a>
+            <a href="#/tools" class="btn btn-secondary" style="padding: 12px 24px;">View All 56 Tools</a>
+          </div>
+        </div>
+      </div>
+    `;
   }
 }

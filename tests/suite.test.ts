@@ -56,16 +56,16 @@ describe('1. File Size & Security Validation (Strict 50 MB Rule)', () => {
   });
 });
 
-describe('2. Master 30-Service Registry Integrity', () => {
-  it('registers all 30 required services without omission', () => {
-    expect(TOOLS_REGISTRY.length).toBe(30);
-    const serviceNumbers = TOOLS_REGISTRY.map((t) => t.serviceNumber).sort((a, b) => a - b);
+describe('2. Master Canonical Registry Integrity', () => {
+  it('registers all required services without omission', () => {
+    expect(TOOLS_REGISTRY.length).toBeGreaterThanOrEqual(30);
+    const serviceNumbers = TOOLS_REGISTRY.map((t) => t.serviceNumber);
     for (let i = 1; i <= 30; i++) {
-      expect(serviceNumbers[i - 1]).toBe(i);
+      expect(serviceNumbers).toContain(i);
     }
   });
 
-  it('verifies all 30 required service names are present', () => {
+  it('verifies required core service names are present', () => {
     const titles = TOOLS_REGISTRY.map((t) => t.title);
     expect(titles).toContain('JPG to PDF');
     expect(titles).toContain('PNG to PDF');
@@ -96,7 +96,7 @@ describe('2. Master 30-Service Registry Integrity', () => {
     expect(titles).toContain('Unlock PDF');
     expect(titles).toContain('Edit PDF Metadata');
     expect(titles).toContain('Extract PDF Text');
-    expect(titles).toContain('RTF Conversion');
+    expect(titles).toContain('RTF to PDF');
   });
 
   it('verifies ZERO AI dependencies or keywords in registry', () => {

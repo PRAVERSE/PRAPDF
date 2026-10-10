@@ -127,7 +127,7 @@ class App {
         </p>
         <div style="display: flex; gap: 12px; justify-content: center;">
           <a href="#/" class="btn btn-primary">Return to Home</a>
-          <a href="#/tools" class="btn btn-secondary">Browse All 30 Tools</a>
+          <a href="#/tools" class="btn btn-secondary">Browse All Tools</a>
         </div>
       </div>
     `;

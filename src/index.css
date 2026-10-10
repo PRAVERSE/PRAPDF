@@ -2077,6 +2077,32 @@ a {
   text-transform: uppercase;
 }
 
+.tool-card-badge.live-badge {
+  background-color: rgba(16, 185, 129, 0.16);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.tool-card-badge.available-badge {
+  background-color: rgba(59, 130, 246, 0.16);
+  color: #3B82F6;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+}
+
+.tool-card-badge.coming-soon-badge {
+  background-color: rgba(234, 179, 8, 0.16);
+  color: #EAB308;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+}
+
+.ilove-tool-card.is-coming-soon {
+  opacity: 0.9;
+}
+
+.ilove-tool-card.is-coming-soon:hover {
+  opacity: 1;
+}
+
 .tool-card-title {
   font-size: 1.125rem;
   font-weight: 700;

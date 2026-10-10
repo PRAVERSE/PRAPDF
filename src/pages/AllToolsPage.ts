@@ -1,9 +1,10 @@
 /**
  * PRA PDF — Dedicated All Tools Catalog Page
- * Complete catalog of all 30 PDF Tools with instant search and category filter.
+ * Complete canonical directory of all 56 PDF and document tools with instant search,
+ * live verification filter, and category navigation.
  */
 
-import { TOOLS_REGISTRY, ToolDefinition, CATEGORY_LABELS, ToolCategory } from '../services/toolsRegistry';
+import { TOOLS_REGISTRY, ToolDefinition, CATEGORY_LABELS } from '../services/toolsRegistry';
 import { renderToolCard } from '../components/ToolCard';
 import { ICONS } from '../components/icons';
 
@@ -18,16 +19,18 @@ export class AllToolsPage {
   }
 
   public render(): void {
-    const filterCategories: { key: ToolCategory | 'all'; label: string }[] = [
-      { key: 'all', label: 'All Tools (30)' },
+    const liveCount = TOOLS_REGISTRY.filter((t) => t.status === 'live').length;
+    const filterCategories: { key: string; label: string }[] = [
+      { key: 'all', label: `All Tools (${TOOLS_REGISTRY.length})` },
+      { key: 'live', label: `Verified Live (${liveCount})` },
       { key: 'organize', label: 'Organize PDF' },
-      { key: 'optimize', label: 'Optimize PDF' },
       { key: 'convert-to-pdf', label: 'Convert to PDF' },
       { key: 'convert-from-pdf', label: 'Convert from PDF' },
-      { key: 'edit', label: 'Annotate & Edit' },
+      { key: 'edit', label: 'Edit & Annotate' },
+      { key: 'optimize', label: 'Optimize PDF' },
       { key: 'security', label: 'Security' },
       { key: 'extract-manage', label: 'Extract & Metadata' },
-      { key: 'other-conversions', label: 'RTF' },
+      { key: 'forms-signatures', label: 'Forms & Signatures' },
     ];
 
     this.container.innerHTML = `
@@ -36,7 +39,7 @@ export class AllToolsPage {
         <div class="ilove-hero-section" style="padding: 24px 0 32px;">
           <h1 class="ilove-hero-title" style="font-size: 2.2rem;">All PDF Tools</h1>
           <p class="ilove-hero-subtitle">
-            Explore all 30 online PDF and document tools. Fast, secure, and 100% free.
+            Explore all ${TOOLS_REGISTRY.length} document services — 17 verified live production tools, 18 available tools, and 21 coming soon in Waves 2–5. Fast, secure, and 100% free.
           </p>
 
           <!-- Command Bar: Search & Category Filter Tabs -->
@@ -46,7 +49,7 @@ export class AllToolsPage {
               <input 
                 type="text" 
                 id="tools-search-input" 
-                placeholder="Search tools... (e.g. merge, compress, word, jpg, ocr, watermark, protect)" 
+                placeholder="Search all ${TOOLS_REGISTRY.length} tools... (e.g. merge, compress, word, jpg, ocr, watermark, protect, flip, n-up)" 
                 value="${this.searchQuery}"
                 autocomplete="off"
                 aria-label="Search all tools"
@@ -108,7 +111,7 @@ export class AllToolsPage {
           <h3>No matching tools found</h3>
           <p>No tools matched "${this.searchQuery}". Try different keywords or reset your filters.</p>
           <button type="button" class="btn btn-secondary btn-sm" id="catalog-reset-search-btn">
-            Reset Filters & Show All 30 Tools
+            Reset Filters & Show All ${TOOLS_REGISTRY.length} Tools
           </button>
         </div>
       `;
@@ -118,12 +121,24 @@ export class AllToolsPage {
   }
 
   private getCategoryTitle(): string {
+    if (this.currentCategory === 'live') {
+      const liveCount = TOOLS_REGISTRY.filter((t) => t.status === 'live').length;
+      return `Verified Live Production Services (${liveCount})`;
+    }
     return (CATEGORY_LABELS as any)[this.currentCategory] || 'Tools';
   }
 
   private getFilteredTools(): ToolDefinition[] {
     return TOOLS_REGISTRY.filter((tool) => {
-      const matchesCategory = this.currentCategory === 'all' || tool.category === this.currentCategory;
+      let matchesCategory = false;
+      if (this.currentCategory === 'all') {
+        matchesCategory = true;
+      } else if (this.currentCategory === 'live') {
+        matchesCategory = tool.status === 'live';
+      } else {
+        matchesCategory = tool.category === this.currentCategory;
+      }
+
       const q = this.searchQuery.toLowerCase();
       const matchesSearch =
         !q ||

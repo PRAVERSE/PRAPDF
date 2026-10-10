@@ -87,7 +87,7 @@ export function renderNavbar(activeRoute: string = '/'): string {
           <div class="mobile-drawer-search">
             <div class="search-input-box">
               ${ICONS['search']}
-              <input type="text" id="mobile-search-input" placeholder="Search 30 PDF tools..." autocomplete="off" />
+              <input type="text" id="mobile-search-input" placeholder="Search 56 PDF tools..." autocomplete="off" />
             </div>
           </div>
 
@@ -105,7 +105,7 @@ export function renderNavbar(activeRoute: string = '/'): string {
               <span>Compress PDF</span>
             </a>
             <a href="#/tools" class="mobile-nav-link ${isTools ? 'active' : ''}">
-              <span>All PDF Tools (30)</span>
+              <span>All PDF Tools (56)</span>
             </a>
             <a href="#/editor" class="mobile-nav-link ${isEditor ? 'active' : ''}">
               <span>Full PDF Editor Studio</span>
