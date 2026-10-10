@@ -69,7 +69,7 @@ async function testLiveWave1() {
   const annotPdf = await buildAnnotatedPdf();
   const fdDel = new FormData();
   fdDel.append('service', 'delete-pdf-annotations');
-  fdDel.append('file', new Blob([annotPdf], { type: 'application/pdf' }), 'annotated.pdf');
+  fdDel.append('file', new Blob([annotPdf as unknown as BlobPart], { type: 'application/pdf' }), 'annotated.pdf');
 
   const resDel = await fetch(`${WORKER_URL}/api/v1/cf/process`, { method: 'POST', body: fdDel });
   console.log(`Status: ${resDel.status}`);
@@ -88,7 +88,7 @@ async function testLiveWave1() {
   const testPdf = await buildTestPdf(2);
   const fdFlip = new FormData();
   fdFlip.append('service', 'flip-pdf');
-  fdFlip.append('file', new Blob([testPdf], { type: 'application/pdf' }), 'to_flip.pdf');
+  fdFlip.append('file', new Blob([testPdf as unknown as BlobPart], { type: 'application/pdf' }), 'to_flip.pdf');
   fdFlip.append('options', JSON.stringify({ direction: 'horizontal' }));
 
   const resFlip = await fetch(`${WORKER_URL}/api/v1/cf/process`, { method: 'POST', body: fdFlip });
@@ -106,7 +106,7 @@ async function testLiveWave1() {
   console.log('\n--- Step 4: Test split-pdf-in-half Live ---');
   const fdHalf = new FormData();
   fdHalf.append('service', 'split-pdf-in-half');
-  fdHalf.append('file', new Blob([testPdf], { type: 'application/pdf' }), 'spreads.pdf');
+  fdHalf.append('file', new Blob([testPdf as unknown as BlobPart], { type: 'application/pdf' }), 'spreads.pdf');
   fdHalf.append('options', JSON.stringify({ splitDirection: 'vertical' }));
 
   const resHalf = await fetch(`${WORKER_URL}/api/v1/cf/process`, { method: 'POST', body: fdHalf });
@@ -126,8 +126,8 @@ async function testLiveWave1() {
   const docB = await buildTestPdf(2);
   const fdMix = new FormData();
   fdMix.append('service', 'alternate-mix-pdf');
-  fdMix.append('files', new Blob([docA], { type: 'application/pdf' }), 'docA.pdf');
-  fdMix.append('files', new Blob([docB], { type: 'application/pdf' }), 'docB.pdf');
+  fdMix.append('files', new Blob([docA as unknown as BlobPart], { type: 'application/pdf' }), 'docA.pdf');
+  fdMix.append('files', new Blob([docB as unknown as BlobPart], { type: 'application/pdf' }), 'docB.pdf');
   fdMix.append('options', JSON.stringify({ reverseSecondDocument: false, step: 1 }));
 
   const resMix = await fetch(`${WORKER_URL}/api/v1/cf/process`, { method: 'POST', body: fdMix });
@@ -146,7 +146,7 @@ async function testLiveWave1() {
   const doc4Pages = await buildTestPdf(4);
   const fdNup = new FormData();
   fdNup.append('service', 'n-up-pdf');
-  fdNup.append('file', new Blob([doc4Pages], { type: 'application/pdf' }), 'doc4.pdf');
+  fdNup.append('file', new Blob([doc4Pages as unknown as BlobPart], { type: 'application/pdf' }), 'doc4.pdf');
   fdNup.append('options', JSON.stringify({ pagesPerSheet: 2, sheetSize: 'A4' }));
 
   const resNup = await fetch(`${WORKER_URL}/api/v1/cf/process`, { method: 'POST', body: fdNup });
