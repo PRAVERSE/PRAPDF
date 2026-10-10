@@ -7,10 +7,11 @@
 
 import { PDFDocument } from 'pdf-lib';
 import { validateFileSize, formatBytes } from './core/fileValidator';
+import { NetworkProgressCallback } from './core/networkClient';
 
 export interface CompressOptions {
   level?: 'extreme' | 'recommended' | 'low' | 'medium' | 'high';
-  onProgress?: (percent: number, status: string) => void;
+  onProgress?: NetworkProgressCallback;
 }
 
 export interface CompressResult {
@@ -22,7 +23,7 @@ export interface CompressResult {
 
 export interface OcrOptions {
   language?: string;
-  onProgress?: (percent: number, status: string) => void;
+  onProgress?: NetworkProgressCallback;
 }
 
 export interface OcrResult {

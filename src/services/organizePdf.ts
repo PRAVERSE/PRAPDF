@@ -14,7 +14,7 @@ import { PDFDocument, degrees } from 'pdf-lib';
 import JSZip from 'jszip';
 import { validateFileSize } from './core/fileValidator';
 import { loadPDF } from './core/pdfEngine';
-import { postFormDataWithProgress } from './core/networkClient';
+import { postFormDataWithProgress, NetworkProgressCallback } from './core/networkClient';
 
 /**
  * Parses user range string (e.g., '1-3, 5, 7-9') into 0-based page indices
@@ -592,7 +592,7 @@ async function callWorkerProcess(
 export async function organizePdfPages(
   file: File,
   pageOrder: { pageIndex: number; rotation?: number }[],
-  options: { onProgress?: (percent: number, status: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Uint8Array> {
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
@@ -610,7 +610,7 @@ export async function organizePdfPages(
 export async function deletePdfPages(
   file: File,
   pagesToDeleteSpec: string,
-  options: { onProgress?: (percent: number, status: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Uint8Array> {
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
@@ -625,7 +625,7 @@ export async function rotatePdf(
   file: File,
   degreesToRotate: 90 | 180 | 270,
   pageIndices?: number[],
-  options: { onProgress?: (percent: number, status: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Uint8Array> {
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
@@ -644,7 +644,7 @@ export async function rotatePdf(
 export async function cropPdf(
   file: File,
   cropMargins: { top: number; right: number; bottom: number; left: number },
-  options: { onProgress?: (percent: number, status: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Uint8Array> {
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);

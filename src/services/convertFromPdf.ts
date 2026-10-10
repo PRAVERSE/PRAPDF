@@ -5,7 +5,7 @@
  */
 
 import { validateFileSize } from './core/fileValidator';
-import { postFormDataWithProgress } from './core/networkClient';
+import { postFormDataWithProgress, NetworkProgressCallback } from './core/networkClient';
 
 const NODE_API = '/api/v1/process';
 
@@ -13,7 +13,7 @@ async function sendToProcessor(
   service: string,
   file: File,
   extraFields: Record<string, string> = {},
-  onProgress?: (p: number, s: string) => void
+  onProgress?: NetworkProgressCallback
 ): Promise<Blob> {
   const check = validateFileSize(file);
   if (!check.valid) throw new Error(check.error);
@@ -39,7 +39,7 @@ async function sendToProcessor(
  */
 export async function convertPdfToJpg(
   file: File,
-  options: { dpi?: number; quality?: number; onProgress?: (p: number, s: string) => void } = {}
+  options: { dpi?: number; quality?: number; onProgress?: NetworkProgressCallback } = {}
 ): Promise<{ filename: string; data: Blob }> {
   const blob = await sendToProcessor(
     'pdf-to-jpg',
@@ -56,7 +56,7 @@ export async function convertPdfToJpg(
  */
 export async function convertPdfToPng(
   file: File,
-  options: { dpi?: number; onProgress?: (p: number, s: string) => void } = {}
+  options: { dpi?: number; onProgress?: NetworkProgressCallback } = {}
 ): Promise<{ filename: string; data: Blob }> {
   const blob = await sendToProcessor('pdf-to-png', file, { dpi: String(options.dpi ?? 150) }, options.onProgress);
   const baseName = file.name.replace(/\.[^/.]+$/, '');
@@ -68,7 +68,7 @@ export async function convertPdfToPng(
  */
 export async function convertPdfToMarkdown(
   file: File,
-  options: { onProgress?: (p: number, s: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Blob> {
   return sendToProcessor('pdf-to-markdown', file, {}, options.onProgress);
 }
@@ -78,7 +78,7 @@ export async function convertPdfToMarkdown(
  */
 export async function convertPdfToWord(
   file: File,
-  options: { onProgress?: (p: number, s: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Blob> {
   return sendToProcessor('pdf-to-word', file, {}, options.onProgress);
 }
@@ -180,7 +180,7 @@ export async function convertPdfToText(
  */
 export async function convertRtfToPdf(
   file: File,
-  options: { onProgress?: (p: number, s: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Blob> {
   return sendToProcessor('rtf-conversion', file, { direction: 'rtf-to-pdf' }, options.onProgress);
 }
@@ -190,7 +190,7 @@ export async function convertRtfToPdf(
  */
 export async function convertPdfToRtf(
   file: File,
-  options: { onProgress?: (p: number, s: string) => void } = {}
+  options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Blob> {
   return sendToProcessor('rtf-conversion', file, { direction: 'pdf-to-rtf' }, options.onProgress);
 }

@@ -18,7 +18,7 @@ import * as XLSX from 'xlsx';
 import MarkdownIt from 'markdown-it';
 import JSZip from 'jszip';
 import { validateFileSize } from './core/fileValidator';
-import { postFormDataWithProgress } from './core/networkClient';
+import { postFormDataWithProgress, NetworkProgressCallback } from './core/networkClient';
 
 const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
 
@@ -26,7 +26,7 @@ export interface ConvertOptions {
   pageSize?: 'A4' | 'LETTER' | 'FIT';
   orientation?: 'portrait' | 'landscape';
   margin?: number;
-  onProgress?: (percent: number, status: string) => void;
+  onProgress?: NetworkProgressCallback;
 }
 
 /**

@@ -11,6 +11,7 @@ export async function processExtractPdfTextWorker(
     outputFileName?: string;
   }
 ): Promise<WorkerEngineResult> {
+  // @ts-ignore
   const pdfjsWorker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
   (globalThis as any).pdfjsWorker = pdfjsWorker;
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');

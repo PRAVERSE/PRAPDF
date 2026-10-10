@@ -205,8 +205,9 @@ export default {
           options = body.options || {};
 
           if (Array.isArray(body.filesBase64) && body.filesBase64.length > 0) {
-            inputBuffers = body.filesBase64.map((b64: string) => base64ToUint8Array(b64));
-            inputBuffer = inputBuffers[0];
+            const bufs = body.filesBase64.map((b64: string) => base64ToUint8Array(b64));
+            inputBuffers = bufs;
+            inputBuffer = bufs[0];
           } else if (body.fileBase64 && typeof body.fileBase64 === 'string') {
             inputBuffer = base64ToUint8Array(body.fileBase64);
             inputBuffers = [inputBuffer];
@@ -538,8 +539,9 @@ export default {
           options = body.options || {};
 
           if (Array.isArray(body.filesBase64) && body.filesBase64.length > 0) {
-            inputBuffers = body.filesBase64.map((b64: string) => base64ToUint8Array(b64));
-            inputBuffer = inputBuffers[0];
+            const bufs = body.filesBase64.map((b64: string) => base64ToUint8Array(b64));
+            inputBuffers = bufs;
+            inputBuffer = bufs[0];
           } else if (body.fileBase64 && typeof body.fileBase64 === 'string') {
             inputBuffer = base64ToUint8Array(body.fileBase64);
             inputBuffers = [inputBuffer];

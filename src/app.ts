@@ -24,8 +24,8 @@ function clearPreviousPageState() {
 }
 
 class App {
-  private appElement: HTMLElement;
-  private contentElement: HTMLElement;
+  private appElement: HTMLElement = null!;
+  private contentElement: HTMLElement = null!;
 
   constructor() {
     const el = document.getElementById('app');

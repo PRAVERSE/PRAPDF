@@ -30,7 +30,7 @@ async function verifyLiveWorker() {
   console.log('\n=== Step 2: Test Split PDF Single Range (Single PDF output) ===');
   const samplePdfBytes = await buildTestPdf(4);
   const formDataSingle = new FormData();
-  formDataSingle.append('file', new Blob([samplePdfBytes], { type: 'application/pdf' }), 'financial_report.pdf');
+  formDataSingle.append('file', new Blob([samplePdfBytes as unknown as BlobPart], { type: 'application/pdf' }), 'financial_report.pdf');
   formDataSingle.append('service', 'split-pdf');
   formDataSingle.append('options', JSON.stringify({
     mode: 'ranges',
@@ -61,7 +61,7 @@ async function verifyLiveWorker() {
 
   console.log('\n=== Step 3: Test Split PDF Multiple Ranges (ZIP archive output) ===');
   const formDataMulti = new FormData();
-  formDataMulti.append('file', new Blob([samplePdfBytes], { type: 'application/pdf' }), 'financial_report.pdf');
+  formDataMulti.append('file', new Blob([samplePdfBytes as unknown as BlobPart], { type: 'application/pdf' }), 'financial_report.pdf');
   formDataMulti.append('service', 'split-pdf');
   formDataMulti.append('options', JSON.stringify({
     mode: 'ranges',
@@ -95,7 +95,7 @@ async function verifyLiveWorker() {
 
   console.log('\n=== Step 4: Test Add Page Numbers Default {n} Format ===');
   const formDataNumbers = new FormData();
-  formDataNumbers.append('file', new Blob([samplePdfBytes], { type: 'application/pdf' }), 'contract.pdf');
+  formDataNumbers.append('file', new Blob([samplePdfBytes as unknown as BlobPart], { type: 'application/pdf' }), 'contract.pdf');
   formDataNumbers.append('service', 'add-page-numbers');
   formDataNumbers.append('options', JSON.stringify({
     formatTemplate: '{n}',

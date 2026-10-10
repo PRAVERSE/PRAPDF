@@ -151,7 +151,7 @@ export async function processSplitPdfWorker(
     const groups = parseRangeGroups(normalizedRangeString, totalPages);
 
     if (groups.length === 0) {
-      throw new Error(`No valid pages matched the specified range: ${options.rangeString}`);
+      throw new Error(`No valid pages matched the specified range: ${normalizedRangeString}`);
     }
 
     // If only one range was specified: output as a single PDF

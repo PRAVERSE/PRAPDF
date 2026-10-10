@@ -10,6 +10,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
@@ -17,6 +19,7 @@
   },
   "include": [
     "src/app.ts",
+    "src/types/**/*",
     "src/components/**/*",
     "src/pages/**/*",
     "src/services/**/*",
