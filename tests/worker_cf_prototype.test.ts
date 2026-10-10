@@ -158,6 +158,11 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
         'add-page-numbers',
         'merge-pdf',
         'split-pdf',
+        'delete-pdf-annotations',
+        'flip-pdf',
+        'split-pdf-in-half',
+        'alternate-mix-pdf',
+        'n-up-pdf',
       ]);
       expect(json.maxUploadBytes).toBe(52428800);
     });

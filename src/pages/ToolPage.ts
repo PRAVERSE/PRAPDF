@@ -57,6 +57,11 @@ import {
   cropPdf,
   editPdfMetadata,
   extractPdfMetadata,
+  deletePdfAnnotations,
+  flipPdf,
+  splitPdfInHalf,
+  alternateMixPdf,
+  nUpPdf,
 } from '../services/organizePdf';
 
 import { addPageNumbersToPdf, watermarkPdf, fullPdfEdit } from '../services/annotatePdf';
@@ -1974,6 +1979,97 @@ This text will be formatted and paginated into a clean PDF document.
           </div>
         `;
 
+      // WAVE 1 TOOLS (5)
+      case 'delete-pdf-annotations':
+        return `
+          <div class="options-stack">
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">🧹</div>
+              <div class="info-box-text">
+                Removes all comments, sticky notes, highlights, and markup while preserving all document text and images.
+              </div>
+            </div>
+          </div>
+        `;
+
+      case 'flip-pdf':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Flip Direction</label>
+              <select class="form-select" id="opt-flip-direction">
+                <option value="horizontal" selected>Horizontal (Mirror Left-to-Right)</option>
+                <option value="vertical">Vertical (Mirror Top-to-Bottom)</option>
+                <option value="both">Both (180° Inversion)</option>
+              </select>
+            </div>
+          </div>
+        `;
+
+      case 'split-pdf-in-half':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Cut Direction</label>
+              <select class="form-select" id="opt-split-half-dir">
+                <option value="vertical" selected>Vertical (Split Down Middle)</option>
+                <option value="horizontal">Horizontal (Split Top & Bottom)</option>
+              </select>
+            </div>
+            <div class="sidebar-info-box">
+              <div class="info-box-icon">✂️</div>
+              <div class="info-box-text">
+                Perfect for scanned book spreads. Splits each 2-page spread into two separate sequential pages.
+              </div>
+            </div>
+          </div>
+        `;
+
+      case 'alternate-mix-pdf':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Second Document Order</label>
+              <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--pra-text-secondary); cursor: pointer;">
+                <input type="checkbox" id="opt-mix-reverse" />
+                Reverse second document (for back-page scans)
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Page Step Interval</label>
+              <input type="number" class="form-input" id="opt-mix-step" value="1" min="1" max="10" />
+            </div>
+          </div>
+        `;
+
+      case 'n-up-pdf':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Pages Per Sheet</label>
+              <select class="form-select" id="opt-nup-pages">
+                <option value="2" selected>2 Pages per Sheet (2-up)</option>
+                <option value="4">4 Pages per Sheet (4-up)</option>
+                <option value="8">8 Pages per Sheet (8-up)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Output Sheet Size</label>
+              <select class="form-select" id="opt-nup-size">
+                <option value="A4" selected>A4 (210 × 297 mm)</option>
+                <option value="LETTER">US Letter (8.5 × 11 in)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sheet Orientation</label>
+              <select class="form-select" id="opt-nup-orient">
+                <option value="landscape" selected>Landscape</option>
+                <option value="portrait">Portrait</option>
+              </select>
+            </div>
+          </div>
+        `;
+
       default:
         return '';
     }
@@ -2583,6 +2679,48 @@ This text will be formatted and paginated into a clean PDF document.
         }
         break;
       }
+
+      // WAVE 1 SERVICES (5)
+      case 'delete-pdf-annotations': {
+        const res = await deletePdfAnnotations(file, { onProgress });
+        await this.finishResult(`${baseName}-clean.pdf`, res);
+        break;
+      }
+      case 'flip-pdf': {
+        const dir = ((document.getElementById('opt-flip-direction') as HTMLSelectElement)?.value || 'horizontal') as any;
+        const res = await flipPdf(file, dir, { onProgress });
+        await this.finishResult(`${baseName}-flipped.pdf`, res);
+        break;
+      }
+      case 'split-pdf-in-half': {
+        const dir = ((document.getElementById('opt-split-half-dir') as HTMLSelectElement)?.value || 'vertical') as any;
+        const res = await splitPdfInHalf(file, dir, { onProgress });
+        await this.finishResult(`${baseName}-split-in-half.pdf`, res);
+        break;
+      }
+      case 'alternate-mix-pdf': {
+        if (this.selectedFiles.length < 2) {
+          throw new Error('Alternate & Mix requires at least two PDF documents.');
+        }
+        const reverseSecond = (document.getElementById('opt-mix-reverse') as HTMLInputElement)?.checked ?? false;
+        const step = parseInt((document.getElementById('opt-mix-step') as HTMLInputElement)?.value || '1', 10) || 1;
+        const res = await alternateMixPdf(this.selectedFiles, {
+          reverseSecondDocument: reverseSecond,
+          step,
+          onProgress,
+        });
+        await this.finishResult('mixed-document.pdf', res);
+        break;
+      }
+      case 'n-up-pdf': {
+        const pagesPerSheet = parseInt((document.getElementById('opt-nup-pages') as HTMLSelectElement)?.value || '2', 10) as any;
+        const sheetSize = ((document.getElementById('opt-nup-size') as HTMLSelectElement)?.value || 'A4') as any;
+        const orientation = ((document.getElementById('opt-nup-orient') as HTMLSelectElement)?.value || 'landscape') as any;
+        const res = await nUpPdf(file, pagesPerSheet, { sheetSize, orientation, onProgress });
+        await this.finishResult(`${baseName}-${pagesPerSheet}up.pdf`, res);
+        break;
+      }
+
       default:
         throw new Error(`Tool "${this.tool.title}" is being routed.`);
     }

@@ -91,6 +91,12 @@ export const ACTIVE_PRODUCTION_SERVICES: WorkerServiceName[] = [
   'add-page-numbers',
   'merge-pdf',
   'split-pdf',
+  // Wave 1 Easiest Services
+  'delete-pdf-annotations',
+  'flip-pdf',
+  'split-pdf-in-half',
+  'alternate-mix-pdf',
+  'n-up-pdf',
 ];
 
 export default {
@@ -341,7 +347,7 @@ export default {
               (b) => b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
             );
           expectedTypeMsg = 'Invalid file format. Only PNG images are supported for png-to-pdf.';
-        } else if (serviceName === 'merge-pdf') {
+        } else if (serviceName === 'merge-pdf' || serviceName === 'alternate-mix-pdf') {
           const toCheck = inputBuffers && inputBuffers.length > 0 ? inputBuffers : (inputBuffer ? [inputBuffer] : []);
           fileTypeValid =
             toCheck.length > 0 &&
@@ -351,7 +357,7 @@ export default {
               const isZip = b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
               return isPdf || isZip;
             });
-          expectedTypeMsg = 'Invalid file format. Only valid PDF files (%PDF) or archives are supported for merge-pdf.';
+          expectedTypeMsg = `Invalid file format. Only valid PDF files (%PDF) are supported for ${serviceName}.`;
         } else if (
           [
             'rotate-pdf',
@@ -363,6 +369,10 @@ export default {
             'extract-pdf-text',
             'add-page-numbers',
             'split-pdf',
+            'delete-pdf-annotations',
+            'flip-pdf',
+            'split-pdf-in-half',
+            'n-up-pdf',
           ].includes(serviceName)
         ) {
           fileTypeValid =
@@ -399,9 +409,17 @@ export default {
         }
 
         // Execution: Pure in-memory Worker execution (Zero native deps, zero branding)
+        const isMultiBufferService =
+          serviceName === 'jpg-to-pdf' ||
+          serviceName === 'png-to-pdf' ||
+          serviceName === 'merge-pdf' ||
+          serviceName === 'alternate-mix-pdf';
+
         const targetInput =
-          (serviceName === 'jpg-to-pdf' || serviceName === 'png-to-pdf' || serviceName === 'merge-pdf') && inputBuffers
-            ? (inputBuffers.length === 1 ? inputBuffers[0] : inputBuffers)
+          isMultiBufferService && inputBuffers
+            ? (inputBuffers.length === 1 && serviceName !== 'alternate-mix-pdf' && serviceName !== 'merge-pdf'
+                ? inputBuffers[0]
+                : inputBuffers)
             : inputBuffer!;
 
         const result = await executeWorkerService(

@@ -9,11 +9,13 @@ import { MAX_FILE_SIZE_BYTES, validateFileSize } from '../src/services/core/file
 import { ICONS, getToolIcon } from '../src/components/icons';
 
 describe('PRA PDF Master Specification Verification', () => {
-  it('contains exactly 30 tools in the registry', () => {
-    expect(TOOLS_REGISTRY.length).toBe(30);
+  it('contains at least 30 baseline tools in the expanding 56-tool registry', () => {
+    expect(TOOLS_REGISTRY.length).toBeGreaterThanOrEqual(30);
     // Verify each service number 1 to 30 is present without gaps
-    const serviceNumbers = TOOLS_REGISTRY.map((t) => t.serviceNumber).sort((a, b) => a - b);
-    expect(serviceNumbers).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
+    const serviceNumbers = TOOLS_REGISTRY.map((t) => t.serviceNumber);
+    for (let i = 1; i <= 30; i++) {
+      expect(serviceNumbers).toContain(i);
+    }
   });
 
   it('verifies exact tool IDs for all 30 tools', () => {

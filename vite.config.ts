@@ -24,6 +24,11 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
   },
   test: {
-    include: ['tests/worker_cf_prototype.test.ts', 'tests/first_6_services.test.ts', 'tests/ui_routes.test.ts'],
+    include: [
+      'tests/worker_cf_prototype.test.ts',
+      'tests/first_6_services.test.ts',
+      'tests/ui_routes.test.ts',
+      'tests/wave1_services.test.ts',
+    ],
   },
 }));

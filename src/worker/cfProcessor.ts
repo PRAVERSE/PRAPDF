@@ -39,6 +39,13 @@ import { processHtmlToPdfWorker } from './engines/htmlToPdf';
 import { processTxtToPdfWorker } from './engines/txtToPdf';
 import { processMarkdownToPdfWorker } from './engines/markdownToPdf';
 
+// Wave 1 Engines (5)
+import { processDeletePdfAnnotationsWorker } from './engines/deletePdfAnnotations';
+import { processFlipPdfWorker } from './engines/flipPdf';
+import { processSplitPdfInHalfWorker } from './engines/splitPdfInHalf';
+import { processAlternateMixPdfWorker } from './engines/alternateMixPdf';
+import { processNUpPdfWorker } from './engines/nUpPdf';
+
 export const SUPPORTED_WORKER_SERVICES: WorkerServiceName[] = [
   // Phase 1 (8)
   'jpg-to-pdf',
@@ -68,6 +75,12 @@ export const SUPPORTED_WORKER_SERVICES: WorkerServiceName[] = [
   'html-to-pdf',
   'txt-to-pdf',
   'markdown-to-pdf',
+  // Wave 1 (5)
+  'delete-pdf-annotations',
+  'flip-pdf',
+  'split-pdf-in-half',
+  'alternate-mix-pdf',
+  'n-up-pdf',
 ];
 
 export interface WorkerJobSuccessResponse {
@@ -177,6 +190,18 @@ export async function executeWorkerService(
       return await processTxtToPdfWorker(singleBuffer, options);
     case 'markdown-to-pdf':
       return await processMarkdownToPdfWorker(singleBuffer, options);
+
+    // Wave 1 (5)
+    case 'delete-pdf-annotations':
+      return await processDeletePdfAnnotationsWorker(singleBuffer, options);
+    case 'flip-pdf':
+      return await processFlipPdfWorker(singleBuffer, options);
+    case 'split-pdf-in-half':
+      return await processSplitPdfInHalfWorker(singleBuffer, options);
+    case 'alternate-mix-pdf':
+      return await processAlternateMixPdfWorker(inputBuffer, options);
+    case 'n-up-pdf':
+      return await processNUpPdfWorker(singleBuffer, options);
 
     default:
       throw new Error(`Unsupported service: ${service}`);

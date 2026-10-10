@@ -338,6 +338,54 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Other Conversions',
     acceptedExtensions: ['.rtf', '.pdf'],
   },
+
+  // WAVE 1: EASIEST REMAINING SERVICES (5)
+  {
+    id: 'delete-pdf-annotations',
+    serviceNumber: 42,
+    title: 'Delete Annotations',
+    description: 'Remove all comments, highlights, stamps, and strikeouts from PDF pages while preserving text.',
+    category: 'edit',
+    categoryLabel: 'Edit PDF',
+    acceptedExtensions: ['.pdf'],
+  },
+  {
+    id: 'flip-pdf',
+    serviceNumber: 31,
+    title: 'Flip PDF',
+    description: 'Mirror PDF pages horizontally or vertically with lossless vector transformation.',
+    category: 'organize',
+    categoryLabel: 'Organize PDF',
+    acceptedExtensions: ['.pdf'],
+  },
+  {
+    id: 'split-pdf-in-half',
+    serviceNumber: 29,
+    title: 'Split PDF in Half',
+    description: 'Split double-page book spreads or side-by-side scans down the middle into two individual pages.',
+    category: 'organize',
+    categoryLabel: 'Organize PDF',
+    acceptedExtensions: ['.pdf'],
+  },
+  {
+    id: 'alternate-mix-pdf',
+    serviceNumber: 28,
+    title: 'Alternate & Mix PDF',
+    description: 'Collate and interleave pages from two or more PDFs (e.g. alternating odd and even scan passes).',
+    category: 'organize',
+    categoryLabel: 'Organize PDF',
+    acceptedExtensions: ['.pdf'],
+    multiple: true,
+  },
+  {
+    id: 'n-up-pdf',
+    serviceNumber: 30,
+    title: 'N-up PDF',
+    description: 'Print or impose 2, 4, or 8 pages per sheet to create compact handouts and booklet proofs.',
+    category: 'organize',
+    categoryLabel: 'Organize PDF',
+    acceptedExtensions: ['.pdf'],
+  },
 ];
 
 export function findToolById(id: string): ToolDefinition | undefined {
@@ -386,6 +434,11 @@ const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
   'edit-pdf-metadata': { accentColor: '#475569', accentBg: 'rgba(71, 85, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Save Metadata' },
   'extract-pdf-text': { accentColor: '#0D9488', accentBg: 'rgba(13, 148, 136, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Text' },
   'rtf-conversion': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select Document', actionBtnLabel: 'Convert Document' },
+  'delete-pdf-annotations': { accentColor: '#EF4444', accentBg: 'rgba(239, 68, 68, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Delete Annotations' },
+  'flip-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Flip PDF' },
+  'split-pdf-in-half': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Split in Half' },
+  'alternate-mix-pdf': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF files', actionBtnLabel: 'Alternate & Mix' },
+  'n-up-pdf': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Impose N-up' },
 };
 
 export function getToolVisualMeta(toolId: string): ToolVisualMeta {

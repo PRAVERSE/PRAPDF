@@ -15,6 +15,11 @@ import JSZip from 'jszip';
 import { validateFileSize } from './core/fileValidator';
 import { loadPDF } from './core/pdfEngine';
 import { postFormDataWithProgress, NetworkProgressCallback } from './core/networkClient';
+import { processDeletePdfAnnotationsWorker } from '../worker/engines/deletePdfAnnotations';
+import { processFlipPdfWorker } from '../worker/engines/flipPdf';
+import { processSplitPdfInHalfWorker } from '../worker/engines/splitPdfInHalf';
+import { processAlternateMixPdfWorker } from '../worker/engines/alternateMixPdf';
+import { processNUpPdfWorker } from '../worker/engines/nUpPdf';
 
 /**
  * Parses user range string (e.g., '1-3, 5, 7-9') into 0-based page indices
@@ -582,6 +587,26 @@ async function callWorkerProcess(
     if (service === 'edit-pdf-metadata') {
       return await editPdfMetadataClient(file, options || {}, onProgress);
     }
+    if (service === 'delete-pdf-annotations') {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const res = await processDeletePdfAnnotationsWorker(buf, options);
+      return res.outputBuffer;
+    }
+    if (service === 'flip-pdf') {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const res = await processFlipPdfWorker(buf, options);
+      return res.outputBuffer;
+    }
+    if (service === 'split-pdf-in-half') {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const res = await processSplitPdfInHalfWorker(buf, options);
+      return res.outputBuffer;
+    }
+    if (service === 'n-up-pdf') {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const res = await processNUpPdfWorker(buf, options);
+      return res.outputBuffer;
+    }
     throw workerErr;
   }
 }
@@ -764,4 +789,147 @@ async function deletePdfPagesClient(
   const out = await newDoc.save({ useObjectStreams: true });
   onProgress?.(100, 'Completed successfully!');
   return out;
+}
+
+/**
+ * Service #42: Delete Annotations
+ */
+export async function deletePdfAnnotations(
+  file: File,
+  options: { onProgress?: NetworkProgressCallback } = {}
+): Promise<Uint8Array> {
+  const check = validateFileSize(file);
+  if (!check.valid) throw new Error(check.error);
+
+  return await callWorkerProcess('delete-pdf-annotations', file, {}, options.onProgress);
+}
+
+/**
+ * Service #31: Flip PDF
+ */
+export async function flipPdf(
+  file: File,
+  direction: 'horizontal' | 'vertical' | 'both' = 'horizontal',
+  options: { onProgress?: NetworkProgressCallback } = {}
+): Promise<Uint8Array> {
+  const check = validateFileSize(file);
+  if (!check.valid) throw new Error(check.error);
+
+  return await callWorkerProcess('flip-pdf', file, { direction }, options.onProgress);
+}
+
+/**
+ * Service #29: Split PDF in Half
+ */
+export async function splitPdfInHalf(
+  file: File,
+  splitDirection: 'vertical' | 'horizontal' = 'vertical',
+  options: { onProgress?: NetworkProgressCallback } = {}
+): Promise<Uint8Array> {
+  const check = validateFileSize(file);
+  if (!check.valid) throw new Error(check.error);
+
+  return await callWorkerProcess('split-pdf-in-half', file, { splitDirection }, options.onProgress);
+}
+
+/**
+ * Service #28: Alternate & Mix PDF
+ */
+export async function alternateMixPdf(
+  files: File[],
+  options: {
+    reverseSecondDocument?: boolean;
+    step?: number;
+    onProgress?: NetworkProgressCallback;
+  } = {}
+): Promise<Uint8Array> {
+  if (!files || files.length < 2) {
+    throw new Error('Alternate & Mix requires at least two PDF files.');
+  }
+
+  let totalBytes = 0;
+  for (const file of files) {
+    const check = validateFileSize(file);
+    if (!check.valid) throw new Error(`${file.name}: ${check.error}`);
+    totalBytes += file.size;
+  }
+
+  if (totalBytes > 50 * 1024 * 1024) {
+    throw new Error(
+      `Total size of files to mix exceeds the 50 MB limit (${(totalBytes / (1024 * 1024)).toFixed(2)} MB).`
+    );
+  }
+
+  options.onProgress?.(5, 'Validating documents…');
+
+  const formData = new FormData();
+  formData.append('service', 'alternate-mix-pdf');
+  files.forEach((f) => formData.append('files', f));
+  formData.append(
+    'options',
+    JSON.stringify({
+      reverseSecondDocument: options.reverseSecondDocument ?? false,
+      step: options.step || 1,
+    })
+  );
+
+  try {
+    const json = await postFormDataWithProgress<any>('/api/v1/cf/process', formData, {
+      onProgress: options.onProgress,
+      serviceName: 'alternate-mix-pdf',
+    });
+
+    if (json.success && json.outputBase64) {
+      options.onProgress?.(95, 'Preparing download…');
+      const binaryString = atob(json.outputBase64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      options.onProgress?.(100, 'Completed successfully!');
+      return bytes;
+    }
+    throw new Error(json.message || 'Worker processing failed.');
+  } catch (workerErr: any) {
+    console.warn('[alternate-mix-pdf] Worker error, executing client fallback:', workerErr);
+    options.onProgress?.(25, 'Preparing files…', 'Processing in browser…');
+    const buffers: Uint8Array[] = [];
+    for (const f of files) {
+      buffers.push(new Uint8Array(await f.arrayBuffer()));
+    }
+    const res = await processAlternateMixPdfWorker(buffers, {
+      reverseSecondDocument: options.reverseSecondDocument,
+      step: options.step,
+    });
+    options.onProgress?.(100, 'Completed successfully!');
+    return res.outputBuffer;
+  }
+}
+
+/**
+ * Service #30: N-up PDF
+ */
+export async function nUpPdf(
+  file: File,
+  pagesPerSheet: 2 | 4 | 8 = 2,
+  options: {
+    sheetSize?: 'A4' | 'LETTER';
+    orientation?: 'portrait' | 'landscape';
+    onProgress?: NetworkProgressCallback;
+  } = {}
+): Promise<Uint8Array> {
+  const check = validateFileSize(file);
+  if (!check.valid) throw new Error(check.error);
+
+  return await callWorkerProcess(
+    'n-up-pdf',
+    file,
+    {
+      pagesPerSheet,
+      sheetSize: options.sheetSize,
+      orientation: options.orientation,
+    },
+    options.onProgress
+  );
 }
