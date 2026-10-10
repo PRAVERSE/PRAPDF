@@ -7,6 +7,7 @@
 import { validateFileSize } from './core/fileValidator';
 import { postFormDataWithProgress, NetworkProgressCallback } from './core/networkClient';
 
+const CF_WORKER_API = '/api/v1/cf/process';
 const NODE_API = '/api/v1/process';
 
 async function sendToProcessor(
@@ -22,8 +23,33 @@ async function sendToProcessor(
   const formData = new FormData();
   formData.append('file', file);
   formData.append('service', service);
+  if (Object.keys(extraFields).length > 0) {
+    formData.append('options', JSON.stringify(extraFields));
+  }
   for (const [k, v] of Object.entries(extraFields)) formData.append(k, v);
 
+  // 1. Try Cloudflare Worker route first
+  try {
+    const json = await postFormDataWithProgress<any>(CF_WORKER_API, formData, {
+      onProgress,
+      serviceName: service,
+    });
+
+    if (json.success && json.outputBase64) {
+      const binaryString = atob(json.outputBase64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      onProgress?.(100, 'Completed successfully!');
+      return new Blob([bytes as unknown as BlobPart], { type: json.mimeType || 'application/octet-stream' });
+    }
+  } catch (cfErr: any) {
+    console.warn(`[${service}] Worker route unavailable, trying processor fallback:`, cfErr);
+  }
+
+  // 2. Fallback to Node processor endpoint
   const blob = await postFormDataWithProgress<Blob>(NODE_API, formData, {
     onProgress,
     serviceName: service,
@@ -182,7 +208,7 @@ export async function convertRtfToPdf(
   file: File,
   options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Blob> {
-  return sendToProcessor('rtf-conversion', file, { direction: 'rtf-to-pdf' }, options.onProgress);
+  return sendToProcessor('rtf-to-pdf', file, { direction: 'rtf-to-pdf' }, options.onProgress);
 }
 
 /**
@@ -192,5 +218,5 @@ export async function convertPdfToRtf(
   file: File,
   options: { onProgress?: NetworkProgressCallback } = {}
 ): Promise<Blob> {
-  return sendToProcessor('rtf-conversion', file, { direction: 'pdf-to-rtf' }, options.onProgress);
+  return sendToProcessor('pdf-to-rtf', file, { direction: 'pdf-to-rtf' }, options.onProgress);
 }

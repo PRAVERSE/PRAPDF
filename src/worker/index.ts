@@ -97,6 +97,37 @@ export const ACTIVE_PRODUCTION_SERVICES: WorkerServiceName[] = [
   'split-pdf-in-half',
   'alternate-mix-pdf',
   'n-up-pdf',
+  // Wave 2 Services (13 services)
+  'images-to-pdf',
+  'word-to-pdf',
+  'excel-to-pdf',
+  'powerpoint-to-pdf',
+  'html-to-pdf',
+  'txt-to-pdf',
+  'markdown-to-pdf',
+  'rtf-to-pdf',
+  'pdf-to-jpg',
+  'pdf-to-png',
+  'pdf-to-markdown',
+  'pdf-to-word',
+  'pdf-to-rtf',
+  // Wave 3 Services (13 services)
+  'compress-pdf',
+  'ocr-pdf',
+  'watermark-pdf',
+  'password-protect-pdf',
+  'unlock-pdf',
+  'full-pdf-editing',
+  'scan-to-pdf',
+  'pdf-to-tiff',
+  'pdf-to-excel',
+  'pdf-to-csv',
+  'pdf-to-powerpoint',
+  'grayscale-pdf',
+  'deskew-pdf',
+  // Canonical Aliases
+  'organize-pdf-pages',
+  'rtf-conversion',
 ];
 
 export default {

@@ -4,9 +4,9 @@
  * Zero external branding. 100% PRA PDF by PRAVERSE.
  *
  * Status Breakdown:
- *   - 'live': 17 services verified in production Cloudflare Worker (12 baseline + 5 Wave 1)
- *   - 'implemented': 18 services implemented via client-side / Node engines
- *   - 'coming-soon': 21 services scheduled for Wave 2–5 implementations
+ *   - 'live': 43 services verified in production Cloudflare Worker (17 baseline + 13 Wave 2 + 13 Wave 3)
+ *   - 'implemented': 0 services
+ *   - 'coming-soon': 13 services scheduled for Wave 4 implementations
  */
 
 export type ToolCategory =
@@ -91,7 +91,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.zip'],
     multiple: true,
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'word-to-pdf',
@@ -102,7 +102,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.docx', '.doc'],
     popular: true,
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'excel-to-pdf',
@@ -112,7 +112,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.xlsx', '.xls', '.csv'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'powerpoint-to-pdf',
@@ -122,7 +122,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.pptx', '.ppt'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'html-to-pdf',
@@ -132,7 +132,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.html', '.htm'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'txt-to-pdf',
@@ -142,7 +142,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.txt'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'markdown-to-pdf',
@@ -152,7 +152,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.md', '.markdown'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'rtf-to-pdf',
@@ -163,7 +163,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.rtf'],
     aliases: ['rtf-conversion'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'scan-to-pdf',
@@ -173,8 +173,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-to-pdf',
     categoryLabel: 'Convert to PDF',
     acceptedExtensions: ['.jpg', '.png', '.pdf'],
-    status: 'coming-soon',
-    wave: 3,
+    status: 'live',
   },
 
   // ==========================================
@@ -189,7 +188,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
     popular: true,
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'pdf-to-png',
@@ -199,7 +198,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-from-pdf',
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'pdf-to-tiff',
@@ -209,8 +208,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-from-pdf',
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 2,
+    status: 'live',
   },
   {
     id: 'pdf-to-markdown',
@@ -220,7 +218,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-from-pdf',
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'pdf-to-word',
@@ -231,7 +229,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
     popular: true,
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'pdf-to-excel',
@@ -241,8 +239,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-from-pdf',
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 4,
+    status: 'live',
   },
   {
     id: 'pdf-to-csv',
@@ -252,8 +249,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-from-pdf',
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 4,
+    status: 'live',
   },
   {
     id: 'pdf-to-powerpoint',
@@ -263,8 +259,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'convert-from-pdf',
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 4,
+    status: 'live',
   },
   {
     id: 'pdf-to-rtf',
@@ -275,7 +270,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Convert from PDF',
     acceptedExtensions: ['.pdf'],
     aliases: ['rtf-conversion'],
-    status: 'implemented',
+    status: 'live',
   },
 
   // ==========================================
@@ -409,7 +404,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Optimize PDF',
     acceptedExtensions: ['.pdf'],
     popular: true,
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'ocr-pdf',
@@ -419,7 +414,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'optimize',
     categoryLabel: 'Optimize PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'grayscale-pdf',
@@ -429,8 +424,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'optimize',
     categoryLabel: 'Optimize PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 2,
+    status: 'live',
   },
   {
     id: 'deskew-pdf',
@@ -440,8 +434,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'optimize',
     categoryLabel: 'Optimize PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 3,
+    status: 'live',
   },
   {
     id: 'repair-pdf',
@@ -476,7 +469,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'edit',
     categoryLabel: 'Edit & Annotate',
     acceptedExtensions: ['.pdf'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'header-footer-pdf',
@@ -593,7 +586,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'security',
     categoryLabel: 'PDF Security',
     acceptedExtensions: ['.pdf'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'unlock-pdf',
@@ -603,7 +596,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'security',
     categoryLabel: 'PDF Security',
     acceptedExtensions: ['.pdf'],
-    status: 'implemented',
+    status: 'live',
   },
   {
     id: 'redact-pdf',
@@ -684,7 +677,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     acceptedExtensions: ['.pdf'],
     aliases: ['editor'],
     popular: true,
-    status: 'implemented',
+    status: 'live',
   },
 ];
 
@@ -718,26 +711,26 @@ const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
   // Convert to PDF
   'jpg-to-pdf': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select JPG images', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
   'png-to-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PNG images', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
-  'images-to-pdf': { accentColor: '#FB7185', accentBg: 'rgba(251, 113, 133, 0.12)', selectBtnLabel: 'Select Images', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'word-to-pdf': { accentColor: '#1D4ED8', accentBg: 'rgba(29, 78, 216, 0.12)', selectBtnLabel: 'Select WORD files', actionBtnLabel: 'Convert to PDF', badge: 'POPULAR' },
-  'excel-to-pdf': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select EXCEL files', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'powerpoint-to-pdf': { accentColor: '#EA580C', accentBg: 'rgba(234, 88, 12, 0.12)', selectBtnLabel: 'Select POWERPOINT files', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'html-to-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select HTML file', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'txt-to-pdf': { accentColor: '#64748B', accentBg: 'rgba(100, 116, 139, 0.12)', selectBtnLabel: 'Select TXT file', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'markdown-to-pdf': { accentColor: '#06B6D4', accentBg: 'rgba(6, 182, 212, 0.12)', selectBtnLabel: 'Select MARKDOWN file', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'rtf-to-pdf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select RTF file', actionBtnLabel: 'Convert to PDF', badge: 'AVAILABLE' },
-  'scan-to-pdf': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Scan from Camera', actionBtnLabel: 'Capture & Convert', badge: 'COMING SOON' },
+  'images-to-pdf': { accentColor: '#FB7185', accentBg: 'rgba(251, 113, 133, 0.12)', selectBtnLabel: 'Select Images', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'word-to-pdf': { accentColor: '#1D4ED8', accentBg: 'rgba(29, 78, 216, 0.12)', selectBtnLabel: 'Select WORD files', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'excel-to-pdf': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select EXCEL files', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'powerpoint-to-pdf': { accentColor: '#EA580C', accentBg: 'rgba(234, 88, 12, 0.12)', selectBtnLabel: 'Select POWERPOINT files', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'html-to-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select HTML file', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'txt-to-pdf': { accentColor: '#64748B', accentBg: 'rgba(100, 116, 139, 0.12)', selectBtnLabel: 'Select TXT file', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'markdown-to-pdf': { accentColor: '#06B6D4', accentBg: 'rgba(6, 182, 212, 0.12)', selectBtnLabel: 'Select MARKDOWN file', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'rtf-to-pdf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select RTF file', actionBtnLabel: 'Convert to PDF', badge: 'LIVE' },
+  'scan-to-pdf': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Scan from Camera', actionBtnLabel: 'Capture & Convert', badge: 'LIVE' },
 
   // Convert from PDF
-  'pdf-to-jpg': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to JPG', badge: 'AVAILABLE' },
-  'pdf-to-png': { accentColor: '#D97706', accentBg: 'rgba(217, 119, 6, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PNG', badge: 'AVAILABLE' },
-  'pdf-to-tiff': { accentColor: '#B45309', accentBg: 'rgba(180, 83, 9, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to TIFF', badge: 'COMING SOON' },
-  'pdf-to-markdown': { accentColor: '#0891B2', accentBg: 'rgba(8, 145, 178, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Markdown', badge: 'AVAILABLE' },
-  'pdf-to-word': { accentColor: '#2563EB', accentBg: 'rgba(37, 99, 235, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to WORD', badge: 'POPULAR' },
-  'pdf-to-excel': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Excel', badge: 'COMING SOON' },
-  'pdf-to-csv': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to CSV', badge: 'COMING SOON' },
-  'pdf-to-powerpoint': { accentColor: '#F97316', accentBg: 'rgba(249, 115, 22, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PowerPoint', badge: 'COMING SOON' },
-  'pdf-to-rtf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to RTF', badge: 'AVAILABLE' },
+  'pdf-to-jpg': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to JPG', badge: 'LIVE' },
+  'pdf-to-png': { accentColor: '#D97706', accentBg: 'rgba(217, 119, 6, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PNG', badge: 'LIVE' },
+  'pdf-to-tiff': { accentColor: '#B45309', accentBg: 'rgba(180, 83, 9, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to TIFF', badge: 'LIVE' },
+  'pdf-to-markdown': { accentColor: '#0891B2', accentBg: 'rgba(8, 145, 178, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Markdown', badge: 'LIVE' },
+  'pdf-to-word': { accentColor: '#2563EB', accentBg: 'rgba(37, 99, 235, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to WORD', badge: 'LIVE' },
+  'pdf-to-excel': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Excel', badge: 'LIVE' },
+  'pdf-to-csv': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to CSV', badge: 'LIVE' },
+  'pdf-to-powerpoint': { accentColor: '#F97316', accentBg: 'rgba(249, 115, 22, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PowerPoint', badge: 'LIVE' },
+  'pdf-to-rtf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to RTF', badge: 'LIVE' },
 
   // Organize PDF
   'merge-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PDF files', actionBtnLabel: 'Merge PDF', badge: 'LIVE' },
@@ -754,15 +747,15 @@ const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
   'flip-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Flip PDF', badge: 'LIVE' },
 
   // Optimize PDF
-  'compress-pdf': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Compress PDF', badge: 'RECOMMENDED' },
-  'ocr-pdf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Run OCR', badge: 'AVAILABLE' },
-  'grayscale-pdf': { accentColor: '#6B7280', accentBg: 'rgba(107, 114, 128, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Grayscale', badge: 'COMING SOON' },
-  'deskew-pdf': { accentColor: '#14B8A6', accentBg: 'rgba(20, 184, 166, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Auto-Deskew PDF', badge: 'COMING SOON' },
+  'compress-pdf': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Compress PDF', badge: 'LIVE' },
+  'ocr-pdf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Run OCR', badge: 'LIVE' },
+  'grayscale-pdf': { accentColor: '#6B7280', accentBg: 'rgba(107, 114, 128, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Grayscale', badge: 'LIVE' },
+  'deskew-pdf': { accentColor: '#14B8A6', accentBg: 'rgba(20, 184, 166, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Auto-Deskew PDF', badge: 'LIVE' },
   'repair-pdf': { accentColor: '#EF4444', accentBg: 'rgba(239, 68, 68, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Repair Document', badge: 'COMING SOON' },
 
   // Edit & Annotate
   'add-page-numbers': { accentColor: '#3B82F6', accentBg: 'rgba(59, 130, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Add Page Numbers', badge: 'LIVE' },
-  'watermark-pdf': { accentColor: '#A855F7', accentBg: 'rgba(168, 85, 247, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Apply Watermark', badge: 'AVAILABLE' },
+  'watermark-pdf': { accentColor: '#A855F7', accentBg: 'rgba(168, 85, 247, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Apply Watermark', badge: 'LIVE' },
   'header-footer-pdf': { accentColor: '#3B82F6', accentBg: 'rgba(59, 130, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Add Header & Footer', badge: 'COMING SOON' },
   'bates-numbering-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF files', actionBtnLabel: 'Add Bates Numbers', badge: 'COMING SOON' },
   'annotate-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Annotate PDF', badge: 'COMING SOON' },
@@ -776,8 +769,8 @@ const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
   'sign-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Sign Document', badge: 'COMING SOON' },
 
   // Security
-  'password-protect-pdf': { accentColor: '#7C3AED', accentBg: 'rgba(124, 58, 237, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Protect PDF', badge: 'AVAILABLE' },
-  'unlock-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Unlock PDF', badge: 'AVAILABLE' },
+  'password-protect-pdf': { accentColor: '#7C3AED', accentBg: 'rgba(124, 58, 237, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Protect PDF', badge: 'LIVE' },
+  'unlock-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Unlock PDF', badge: 'LIVE' },
   'redact-pdf': { accentColor: '#DC2626', accentBg: 'rgba(220, 38, 38, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Redact Text & Areas', badge: 'COMING SOON' },
 
   // Extract & Metadata
@@ -786,10 +779,10 @@ const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
   'extract-images-from-pdf': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Images', badge: 'COMING SOON' },
   'edit-pdf-metadata': { accentColor: '#475569', accentBg: 'rgba(71, 85, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Save Metadata', badge: 'LIVE' },
   'extract-pdf-text': { accentColor: '#0D9488', accentBg: 'rgba(13, 148, 136, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Text', badge: 'LIVE' },
-  'full-pdf-editing': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Open PDF Studio', badge: 'STUDIO' },
+  'full-pdf-editing': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Open PDF Studio', badge: 'LIVE' },
 
   // Fallback RTF
-  'rtf-conversion': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select Document', actionBtnLabel: 'Convert Document', badge: 'AVAILABLE' },
+  'rtf-conversion': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select Document', actionBtnLabel: 'Convert Document', badge: 'LIVE' },
 };
 
 export function getToolVisualMeta(toolId: string): ToolVisualMeta {

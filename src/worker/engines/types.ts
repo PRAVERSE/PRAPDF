@@ -37,7 +37,23 @@ export type WorkerServiceName =
   | 'flip-pdf'
   | 'split-pdf-in-half'
   | 'alternate-mix-pdf'
-  | 'n-up-pdf';
+  | 'n-up-pdf'
+  // Wave 2 Services & Aliases
+  | 'images-to-pdf'
+  | 'rtf-to-pdf'
+  | 'pdf-to-rtf'
+  | 'pdf-to-jpg'
+  | 'pdf-to-png'
+  | 'organize-pdf-pages'
+  // Wave 3 Services
+  | 'ocr-pdf'
+  | 'scan-to-pdf'
+  | 'pdf-to-tiff'
+  | 'pdf-to-excel'
+  | 'pdf-to-csv'
+  | 'pdf-to-powerpoint'
+  | 'grayscale-pdf'
+  | 'deskew-pdf';
 
 export interface WorkerEngineResult {
   service: WorkerServiceName;

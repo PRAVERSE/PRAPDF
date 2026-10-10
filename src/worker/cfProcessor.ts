@@ -46,6 +46,20 @@ import { processSplitPdfInHalfWorker } from './engines/splitPdfInHalf';
 import { processAlternateMixPdfWorker } from './engines/alternateMixPdf';
 import { processNUpPdfWorker } from './engines/nUpPdf';
 
+// Wave 2 Engines (3 new files, 13 total services)
+import { processImagesToPdfWorker } from './engines/imagesToPdf';
+import { processPdfToJpgWorker, processPdfToPngWorker } from './engines/pdfToImages';
+
+// Wave 3 Engines (8 new files, 13 total services)
+import { processOcrPdfWorker } from './engines/ocrPdf';
+import { processScanToPdfWorker } from './engines/scanToPdf';
+import { processPdfToTiffWorker } from './engines/pdfToTiff';
+import { processPdfToExcelWorker } from './engines/pdfToExcel';
+import { processPdfToCsvWorker } from './engines/pdfToCsv';
+import { processPdfToPowerpointWorker } from './engines/pdfToPowerpoint';
+import { processGrayscalePdfWorker } from './engines/grayscalePdf';
+import { processDeskewPdfWorker } from './engines/deskewPdf';
+
 export const SUPPORTED_WORKER_SERVICES: WorkerServiceName[] = [
   // Phase 1 (8)
   'jpg-to-pdf',
@@ -81,6 +95,22 @@ export const SUPPORTED_WORKER_SERVICES: WorkerServiceName[] = [
   'split-pdf-in-half',
   'alternate-mix-pdf',
   'n-up-pdf',
+  // Wave 2 (13 services & aliases)
+  'images-to-pdf',
+  'rtf-to-pdf',
+  'pdf-to-rtf',
+  'pdf-to-jpg',
+  'pdf-to-png',
+  'organize-pdf-pages',
+  // Wave 3 (13 services)
+  'ocr-pdf',
+  'scan-to-pdf',
+  'pdf-to-tiff',
+  'pdf-to-excel',
+  'pdf-to-csv',
+  'pdf-to-powerpoint',
+  'grayscale-pdf',
+  'deskew-pdf',
 ];
 
 export interface WorkerJobSuccessResponse {
@@ -202,6 +232,38 @@ export async function executeWorkerService(
       return await processAlternateMixPdfWorker(inputBuffer, options);
     case 'n-up-pdf':
       return await processNUpPdfWorker(singleBuffer, options);
+
+    // Wave 2 (13 services & aliases)
+    case 'images-to-pdf':
+      return await processImagesToPdfWorker(inputBuffer, options);
+    case 'rtf-to-pdf':
+      return await processRtfConversionWorker(singleBuffer, { ...options, serviceName: 'rtf-to-pdf' });
+    case 'pdf-to-rtf':
+      return await processRtfConversionWorker(singleBuffer, { ...options, serviceName: 'pdf-to-rtf' });
+    case 'pdf-to-jpg':
+      return await processPdfToJpgWorker(singleBuffer, options);
+    case 'pdf-to-png':
+      return await processPdfToPngWorker(singleBuffer, options);
+    case 'organize-pdf-pages':
+      return await processOrganizePdfWorker(singleBuffer, options);
+
+    // Wave 3 (13 services)
+    case 'ocr-pdf':
+      return await processOcrPdfWorker(singleBuffer, options);
+    case 'scan-to-pdf':
+      return await processScanToPdfWorker(inputBuffer, options);
+    case 'pdf-to-tiff':
+      return await processPdfToTiffWorker(singleBuffer, options);
+    case 'pdf-to-excel':
+      return await processPdfToExcelWorker(singleBuffer, options);
+    case 'pdf-to-csv':
+      return await processPdfToCsvWorker(singleBuffer, options);
+    case 'pdf-to-powerpoint':
+      return await processPdfToPowerpointWorker(singleBuffer, options);
+    case 'grayscale-pdf':
+      return await processGrayscalePdfWorker(singleBuffer, options);
+    case 'deskew-pdf':
+      return await processDeskewPdfWorker(singleBuffer, options);
 
     default:
       throw new Error(`Unsupported service: ${service}`);

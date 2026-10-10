@@ -4,7 +4,7 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
-import { WorkerEngineResult } from './types';
+import { WorkerEngineResult, WorkerServiceName } from './types';
 
 function parseRtfToText(rtfString: string): string[] {
   const cleanHeader = rtfString.replace(/\{\\(?:fonttbl|colortbl|stylesheet|info)[^}]*\}/gi, '');
@@ -40,6 +40,9 @@ export async function processRtfConversionWorker(
 
   if (isPdfInput) {
     // PDF → RTF
+    // @ts-ignore
+    const pdfjsWorker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
+    (globalThis as any).pdfjsWorker = pdfjsWorker;
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(inputBuffer),
@@ -71,7 +74,7 @@ export async function processRtfConversionWorker(
     const outputBuffer = encoder.encode(rtfContent);
 
     return {
-      service: 'rtf-conversion',
+      service: (options?.serviceName === 'pdf-to-rtf' ? 'pdf-to-rtf' : 'rtf-conversion') as WorkerServiceName,
       outputBuffer,
       mimeType: 'application/rtf',
       outputFileName: 'converted.rtf',
@@ -149,7 +152,7 @@ export async function processRtfConversionWorker(
     const outBytes = await doc.save({ useObjectStreams: true });
 
     return {
-      service: 'rtf-conversion',
+      service: (options?.serviceName === 'rtf-to-pdf' ? 'rtf-to-pdf' : 'rtf-conversion') as WorkerServiceName,
       outputBuffer: outBytes,
       mimeType: 'application/pdf',
       outputFileName: 'converted.pdf',

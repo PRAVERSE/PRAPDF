@@ -18,6 +18,8 @@
     "@aws-sdk/s3-request-presigner": "^3.1147.0",
     "@cantoo/pdf-lib": "^2.11.1",
     "@napi-rs/canvas": "^1.0.10",
+    "@types/jpeg-js": "^0.3.0",
+    "jpeg-js": "^0.4.4",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "jszip": "^3.10.1",

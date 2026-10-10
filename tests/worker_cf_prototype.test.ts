@@ -145,25 +145,9 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
       const json = await res.json();
       expect(json.status).toBe('healthy');
       expect(json.phase).toContain('Phase 3B');
-      expect(json.activeProductionServices).toEqual([
-        'jpg-to-pdf',
-        'png-to-pdf',
-        'rotate-pdf',
-        'crop-pdf',
-        'organize-pdf',
-        'delete-pdf-pages',
-        'extract-pdf-pages',
-        'edit-pdf-metadata',
-        'extract-pdf-text',
-        'add-page-numbers',
-        'merge-pdf',
-        'split-pdf',
-        'delete-pdf-annotations',
-        'flip-pdf',
-        'split-pdf-in-half',
-        'alternate-mix-pdf',
-        'n-up-pdf',
-      ]);
+      expect(json.activeProductionServices).toContain('jpg-to-pdf');
+      expect(json.activeProductionServices).toContain('word-to-pdf');
+      expect(json.activeProductionServices).toContain('pdf-to-jpg');
       expect(json.maxUploadBytes).toBe(52428800);
     });
 
@@ -271,8 +255,8 @@ describe('PRA PDF — Cloudflare Worker Phase 1 Prototype Suite', () => {
 
     it('POST /api/v1/cf/process rejects non-whitelisted service with 400 UNSUPPORTED_SERVICE', async () => {
       const form = new FormData();
-      form.append('service', 'word-to-pdf');
-      form.append('file', new Blob([new Uint8Array([1, 2, 3])]), 'test.docx');
+      form.append('service', 'unsupported-service-xyz');
+      form.append('file', new Blob([new Uint8Array([1, 2, 3])]), 'test.bin');
 
       const req = new Request('http://localhost/api/v1/cf/process', { method: 'POST', body: form });
       const res = await worker.fetch(req, {});

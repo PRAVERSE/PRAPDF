@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => ({
       'tests/first_6_services.test.ts',
       'tests/ui_routes.test.ts',
       'tests/wave1_services.test.ts',
+      'tests/wave2_services.test.ts',
+      'tests/wave3_services.test.ts',
+      'tests/suite.test.ts',
     ],
   },
 }));

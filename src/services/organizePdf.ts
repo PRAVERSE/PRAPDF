@@ -50,19 +50,18 @@ export function parsePageRangeString(
       if (isNaN(start) || isNaN(end)) {
         throw new Error(`Invalid page numbers in range: "${chunk}".`);
       }
-      if (start < 1) {
-        throw new Error(`Page numbers must be 1 or greater. Received: ${start}.`);
-      }
-      if (end > totalPages) {
-        throw new Error(
-          `Page ${end} in range "${chunk}" is out of range. Document only contains ${totalPages} page${totalPages > 1 ? 's' : ''}.`
-        );
-      }
       if (start > end) {
         throw new Error(`Start page (${start}) cannot be greater than end page (${end}) in range: "${chunk}".`);
       }
+      // If range is completely out of document bounds, skip it gracefully
+      if (start > totalPages || end < 1) {
+        continue;
+      }
+      // Clamp bounds to valid document pages
+      const clampedStart = Math.max(1, start);
+      const clampedEnd = Math.min(totalPages, end);
 
-      for (let i = start; i <= end; i++) {
+      for (let i = clampedStart; i <= clampedEnd; i++) {
         const idx = i - 1;
         if (!seen.has(idx)) {
           seen.add(idx);

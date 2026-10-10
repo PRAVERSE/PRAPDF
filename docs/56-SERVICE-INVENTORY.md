@@ -1,144 +1,83 @@
-# PRA PDF — Canonical 56-Service Inventory
+# PRA PDF — Master 56-Service Inventory
 **Product:** PRA PDF  
 **Company:** PRAVERSE ("A PRAVERSE Company")  
-**Website:** [https://prapdf.us.ci](https://prapdf.us.ci/)  
+**Production Website:** [https://prapdf.us.ci](https://prapdf.us.ci/)  
 **Cloudflare Worker:** [https://pra-pdf.praverse-auth.workers.dev](https://pra-pdf.praverse-auth.workers.dev/)  
 **GitHub Repository:** [https://github.com/PRAVERSE/PRAPDF.git](https://github.com/PRAVERSE/PRAPDF.git)  
 **Branch:** main  
-**Date:** October 2026  
+**Milestone:** Wave 3 Complete (43 of 56 Services Verified Live)  
 
 ---
 
-## 1. Catalog Principles & Discrepancy Resolutions
+## 1. Executive Summary
 
-This inventory establishes the single canonical list of **exactly 56 unique document services** for PRA PDF.
-
-### Discrepancy Resolutions & Architectural Decisions:
-1. **RTF to PDF vs. PDF to RTF (Resolution of ambiguous #30 RTF Conversion):**
-   - In previous iterations, RTF conversion was modeled as a single bidirectional tool.
-   - **Resolution:** Explicitly divided into two distinct, single-purpose services:
-     - Service #10: `rtf-to-pdf` (Rich Text to PDF converter)
-     - Service #20: `pdf-to-rtf` (PDF to Rich Text converter)
-   - *Trade-off:* Clear UX with dedicated input validators and distinct dropzones; eliminates confusing mode switches.
-
-2. **PDF to TIFF vs. PDF to JPG/PNG:**
-   - **Resolution:** Service #14 is established as `pdf-to-tiff`. TIFF is an indispensable standard in archival, medical, and legal workflows requiring multi-page lossless bitmap output.
-
-3. **PDF to CSV vs. PDF to Excel:**
-   - **Resolution:** Split into two distinct services:
-     - Service #17: `pdf-to-excel` (outputs structured `.xlsx` workbooks with cell styling)
-     - Service #18: `pdf-to-csv` (outputs flat, comma-separated values `.csv` for immediate database ingestion and scripting)
-
-4. **Scan to PDF:**
-   - **Resolution:** Service #11 is established as `scan-to-pdf`. Utilizes HTML5 MediaStream (`navigator.mediaDevices.getUserMedia`) for high-resolution document capture directly from webcams or mobile cameras with edge perspective correction.
-
-5. **Annotate PDF vs. Delete Annotations:**
-   - **Resolution:** Established as two distinct complementary tools:
-     - Service #41: `annotate-pdf` (adds highlights, strikeouts, sticky notes, and drawing markups)
-     - Service #42: `delete-pdf-annotations` (strips `/Annots` arrays from all page dictionaries without altering document text or geometry)
-
-6. **Fill PDF Forms vs. Create PDF Forms:**
-   - **Resolution:** Established as two distinct services:
-     - Service #45: `fill-pdf-forms` (inspects existing AcroForm fields and renders an interactive browser form filler)
-     - Service #46: `create-pdf-forms` (interactive form builder to add text inputs, checkboxes, radios, and dropdowns to flat PDFs)
-
-7. **Split PDF in Half vs. Split PDF:**
-   - **Resolution:** Established as two distinct services:
-     - Service #22: `split-pdf` (splits by page ranges, fixed page counts, or separates all pages)
-     - Service #29: `split-pdf-in-half` (specialized book/spread splitter that doubles pages and applies left/right CropBoxes for 2-up scans)
-
-8. **Compare PDF:**
-   - **Resolution:** Service #52 is established as `compare-pdf`. Offers dual modes: semantic text diff (Myers algorithm) and visual pixel overlay diff.
-
-9. **Full PDF Editing vs. Annotate PDF:**
-   - **Resolution:** 
-     - Service #56: `full-pdf-editing` (full interactive studio with canvas, page rail, text box injection, image stamping, and vector manipulation)
-     - Service #41: `annotate-pdf` (streamlined quick-markup tool for reading and commenting)
+- **Total Catalog Entries:** 56
+- **DONE — VERIFIED LIVE:** 43 (17 Baseline + 13 Wave 2 + 13 Wave 3)
+- **IMPLEMENTED — NOT LIVE-VERIFIED:** 0
+- **IN PROGRESS:** 0
+- **NOT DONE:** 13 (Scheduled for Wave 4)
+- **BLOCKED:** 0
+- **Sum:** 43 + 0 + 0 + 13 + 0 = 56
 
 ---
 
-## 2. Canonical Master Catalog Table (Exactly 56 Services)
+## 2. Canonical Master 56-Service Inventory Table
 
-| # | Service ID | Service Name | Category | Primary Runtime | Input Types | Output Type | Verified Baseline Status | Complexity |
-|---|---|---|---|---|---|---|---|---|
-| 1 | `jpg-to-pdf` | JPG to PDF | Convert to PDF | Worker / Client | `.jpg`, `.jpeg` | `.pdf` | **Verified Live** | Low |
-| 2 | `png-to-pdf` | PNG to PDF | Convert to PDF | Worker / Client | `.png` | `.pdf` | **Verified Live** | Low |
-| 3 | `images-to-pdf` | Images to PDF | Convert to PDF | Worker / Client | `.jpg`, `.png`, `.webp`, `.bmp` | `.pdf` | Implemented, Not Live-Verified | Low |
-| 4 | `word-to-pdf` | Word to PDF | Convert to PDF | Node / Worker | `.docx`, `.doc` | `.pdf` | Implemented, Not Live-Verified | High |
-| 5 | `excel-to-pdf` | Excel to PDF | Convert to PDF | Worker / Client | `.xlsx`, `.xls`, `.csv` | `.pdf` | Implemented, Not Live-Verified | Medium |
-| 6 | `powerpoint-to-pdf` | PowerPoint to PDF | Convert to PDF | Node / Worker | `.pptx`, `.ppt` | `.pdf` | Implemented, Not Live-Verified | High |
-| 7 | `html-to-pdf` | HTML to PDF | Convert to PDF | Worker / Client | `.html`, `.htm` | `.pdf` | Implemented, Not Live-Verified | Medium |
-| 8 | `txt-to-pdf` | TXT to PDF | Convert to PDF | Worker / Client | `.txt` | `.pdf` | Implemented, Not Live-Verified | Low |
-| 9 | `markdown-to-pdf` | Markdown to PDF | Convert to PDF | Worker / Client | `.md`, `.markdown` | `.pdf` | Implemented, Not Live-Verified | Low |
-| 10 | `rtf-to-pdf` | RTF to PDF | Convert to PDF | Node / Worker | `.rtf` | `.pdf` | Implemented, Not Live-Verified | Medium |
-| 11 | `scan-to-pdf` | Scan to PDF | Convert to PDF | Client Canvas | Camera / MediaStream | `.pdf` | Missing | Medium |
-| 12 | `pdf-to-jpg` | PDF to JPG | Convert from PDF | Worker / Client | `.pdf` | `.jpg`, `.zip` | Implemented, Not Live-Verified | Medium |
-| 13 | `pdf-to-png` | PDF to PNG | Convert from PDF | Worker / Client | `.pdf` | `.png`, `.zip` | Implemented, Not Live-Verified | Medium |
-| 14 | `pdf-to-tiff` | PDF to TIFF | Convert from PDF | Worker / Client | `.pdf` | `.tiff`, `.zip` | Missing | Medium |
-| 15 | `pdf-to-markdown` | PDF to Markdown | Convert from PDF | Worker / Client | `.pdf` | `.md` | Implemented, Not Live-Verified | Medium |
-| 16 | `pdf-to-word` | PDF to Word | Convert from PDF | Node / Worker | `.pdf` | `.docx` | Implemented, Not Live-Verified | High |
-| 17 | `pdf-to-excel` | PDF to Excel | Convert from PDF | Worker / Client | `.pdf` | `.xlsx` | Missing | High |
-| 18 | `pdf-to-csv` | PDF to CSV | Convert from PDF | Worker / Client | `.pdf` | `.csv` | Missing | Medium |
-| 19 | `pdf-to-powerpoint` | PDF to PowerPoint | Convert from PDF | Node / Worker | `.pdf` | `.pptx` | Missing | High |
-| 20 | `pdf-to-rtf` | PDF to RTF | Convert from PDF | Node / Worker | `.pdf` | `.rtf` | Missing | Medium |
-| 21 | `merge-pdf` | Merge PDF | Organize PDF | Worker / Client | `.pdf` (Multiple) | `.pdf` | **Verified Live** | Low |
-| 22 | `split-pdf` | Split PDF | Organize PDF | Worker / Client | `.pdf` | `.pdf`, `.zip` | **Verified Live** | Low |
-| 23 | `organize-pdf-pages` | Organize PDF Pages | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 24 | `delete-pdf-pages` | Delete PDF Pages | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 25 | `extract-pdf-pages` | Extract PDF Pages | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 26 | `rotate-pdf` | Rotate PDF | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 27 | `crop-pdf` | Crop PDF | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 28 | `alternate-mix-pdf` | Alternate & Mix PDF | Organize PDF | Worker / Client | `.pdf` (Multiple) | `.pdf` | **Verified Live** | Low |
-| 29 | `split-pdf-in-half` | Split PDF in Half | Organize PDF | Worker / Client | `.pdf` | `.pdf`, `.zip` | **Verified Live** | Low |
-| 30 | `n-up-pdf` | N-up PDF | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 31 | `flip-pdf` | Flip PDF | Organize PDF | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 32 | `compress-pdf` | Compress PDF | Optimize PDF | Worker / Client | `.pdf` | `.pdf` | Implemented, Not Live-Verified | Medium |
-| 33 | `ocr-pdf` | OCR PDF | Optimize PDF | Client WASM | `.pdf` | `.pdf` | Implemented, Not Live-Verified | High |
-| 34 | `grayscale-pdf` | Grayscale PDF | Optimize PDF | Worker / Client | `.pdf` | `.pdf` | Missing | Medium |
-| 35 | `deskew-pdf` | Deskew PDF | Optimize PDF | Worker / Client | `.pdf` | `.pdf` | Missing | Medium |
-| 36 | `repair-pdf` | Repair PDF | Optimize PDF | Worker / Node | `.pdf` | `.pdf` | Missing | High |
-| 37 | `add-page-numbers` | Add Page Numbers | Edit & Annotate | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 38 | `watermark-pdf` | Watermark PDF | Edit & Annotate | Worker / Client | `.pdf` | `.pdf` | Implemented, Not Live-Verified | Low |
-| 39 | `header-footer-pdf` | Header & Footer | Edit & Annotate | Worker / Client | `.pdf` | `.pdf` | Missing | Low |
-| 40 | `bates-numbering-pdf` | Bates Numbering | Edit & Annotate | Worker / Client | `.pdf` (Multiple) | `.pdf` | Missing | Low |
-| 41 | `annotate-pdf` | Annotate PDF | Edit & Annotate | Client / Worker | `.pdf` | `.pdf` | Missing | Medium |
-| 42 | `delete-pdf-annotations` | Delete Annotations | Edit & Annotate | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 43 | `flatten-pdf` | Flatten PDF | Edit & Annotate | Worker / Client | `.pdf` | `.pdf` | Missing | Low |
-| 44 | `resize-pdf` | Resize PDF Pages | Edit & Annotate | Worker / Client | `.pdf` | `.pdf` | Missing | Low |
-| 45 | `fill-pdf-forms` | Fill PDF Forms | Forms & Signatures | Client / Worker | `.pdf` | `.pdf` | Missing | Medium |
-| 46 | `create-pdf-forms` | Create PDF Forms | Forms & Signatures | Client / Worker | `.pdf` | `.pdf` | Missing | Medium |
-| 47 | `sign-pdf` | Sign PDF | Forms & Signatures | Client / Worker | `.pdf` | `.pdf` | Missing | Low |
-| 48 | `password-protect-pdf` | Password-Protect PDF | Security | Worker / Node | `.pdf` | `.pdf` | Implemented, Not Live-Verified | Medium |
-| 49 | `unlock-pdf` | Unlock PDF | Security | Worker / Client | `.pdf` | `.pdf` | Implemented, Not Live-Verified | Medium |
-| 50 | `redact-pdf` | Redact PDF | Security | Client / Worker | `.pdf` | `.pdf` | Missing | High |
-| 51 | `pdf-to-pdfa` | PDF to PDF/A | Standards | Worker / Node | `.pdf` | `.pdf` | Missing | Medium |
-| 52 | `compare-pdf` | Compare PDF | Productivity | Client Canvas | `.pdf` (2 files) | Visual / `.pdf` | Missing | High |
-| 53 | `extract-images-from-pdf` | Extract Images | Content Extract | Worker / Client | `.pdf` | `.zip` | Missing | Low |
-| 54 | `edit-pdf-metadata` | Edit PDF Metadata | Metadata | Worker / Client | `.pdf` | `.pdf` | **Verified Live** | Low |
-| 55 | `extract-pdf-text` | Extract PDF Text | Content Extract | Worker / Client | `.pdf` | `.txt` | **Verified Live** | Low |
-| 56 | `full-pdf-editing` | Full PDF Editing | Studio | Client Studio | `.pdf` | `.pdf` | Implemented, Not Live-Verified | High |
-
----
-
-## 3. Production Baseline Verification Summary
-
-Our automated test suite executed live I/O tests against the production Cloudflare Worker (`https://pra-pdf.praverse-auth.workers.dev/api/v1/cf/process`):
-- **Working and verified in production (12 services):**
-  1. `jpg-to-pdf` — HTTP 200, valid `%PDF-`, 1 page verified
-  2. `png-to-pdf` — HTTP 200, valid `%PDF-`, 1 page verified
-  3. `rotate-pdf` — HTTP 200, valid `%PDF-`, 90° rotation verified on Page 0
-  4. `crop-pdf` — HTTP 200, valid `%PDF-`, 3 pages with CropBox applied
-  5. `organize-pdf-pages` — HTTP 200, valid `%PDF-`, reordered `[2, 0, 1]` verified
-  6. `delete-pdf-pages` — HTTP 200, valid `%PDF-`, page count reduced from 3 to 2
-  7. `extract-pdf-pages` — HTTP 200, valid `%PDF-`, extracted pages 1 & 3 verified
-  8. `edit-pdf-metadata` — HTTP 200, valid `%PDF-`, Title & Author round-trip verified
-  9. `extract-pdf-text` — HTTP 200, `text/plain; charset=utf-8`, 146 characters extracted
-  10. `add-page-numbers` — HTTP 200, valid `%PDF-`, default `{n}` stamped
-  11. `merge-pdf` — HTTP 200, valid `%PDF-`, 2 + 2 = 4 pages merged
-  12. `split-pdf` — HTTP 200, valid `%PDF-` on single range, valid `[0x50, 0x4B]` ZIP on multi-range
-- **Implemented but not live-verified (14 services):**
-  `images-to-pdf`, `word-to-pdf`, `excel-to-pdf`, `powerpoint-to-pdf`, `html-to-pdf`, `txt-to-pdf`, `markdown-to-pdf`, `rtf-to-pdf`, `pdf-to-jpg`, `pdf-to-png`, `pdf-to-markdown`, `pdf-to-word`, `compress-pdf`, `ocr-pdf`, `watermark-pdf`, `password-protect-pdf`, `unlock-pdf`, `full-pdf-editing`.
-- **Missing from registry / endpoints (30 services):**
-  `scan-to-pdf`, `pdf-to-tiff`, `pdf-to-excel`, `pdf-to-csv`, `pdf-to-powerpoint`, `pdf-to-rtf`, `alternate-mix-pdf`, `split-pdf-in-half`, `n-up-pdf`, `flip-pdf`, `grayscale-pdf`, `deskew-pdf`, `repair-pdf`, `header-footer-pdf`, `bates-numbering-pdf`, `annotate-pdf`, `delete-pdf-annotations`, `flatten-pdf`, `resize-pdf`, `fill-pdf-forms`, `create-pdf-forms`, `sign-pdf`, `redact-pdf`, `pdf-to-pdfa`, `compare-pdf`, `extract-images-from-pdf`.
-
-Total Services: **56 distinct services.**
+| Number | Service | Service ID | Wave | Implementation | Local test | Local output validation | Production test | Production output validation | Final status | Evidence | Known issues |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | JPG to PDF | `jpg-to-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 1 page) | Pass | Pass (HTTP 200, 1068 bytes) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 2 | PNG to PDF | `png-to-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 1 page) | Pass | Pass (HTTP 200, 1137 bytes) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 3 | Rotate PDF | `rotate-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 90° rot) | Pass | Pass (HTTP 200, rotated.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 4 | Crop PDF | `crop-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, CropBox) | Pass | Pass (HTTP 200, cropped.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 5 | Organize PDF Pages | `organize-pdf-pages` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, reordered) | Pass | Pass (HTTP 200, organized.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | Alias `organize-pdf` supported |
+| 6 | Delete PDF Pages | `delete-pdf-pages` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 2 pages) | Pass | Pass (HTTP 200, deleted.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 7 | Extract PDF Pages | `extract-pdf-pages` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 2 pages) | Pass | Pass (HTTP 200, extracted.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 8 | Edit PDF Metadata | `edit-pdf-metadata` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, Title/Author) | Pass | Pass (HTTP 200, metadata.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 9 | Extract PDF Text | `extract-pdf-text` | Baseline | Complete (pdfjs-dist) | Pass | Pass (UTF-8, 146 chars) | Pass | Pass (HTTP 200, text/plain) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 10 | Add Page Numbers | `add-page-numbers` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, {n}) | Pass | Pass (HTTP 200, numbered.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 11 | Merge PDF | `merge-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 4 pages) | Pass | Pass (HTTP 200, merged.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 12 | Split PDF | `split-pdf` | Baseline | Complete (pdf-lib/JSZip) | Pass | Pass (`%PDF-` / `PK`) | Pass | Pass (HTTP 200, split.pdf) | DONE — VERIFIED LIVE | `verify_all_12_baseline.ts` | None |
+| 13 | Delete Annotations | `delete-pdf-annotations` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, annots 0) | Pass | Pass (HTTP 200, no annots) | DONE — VERIFIED LIVE | `live_verify_wave1.ts` | None |
+| 14 | Flip PDF | `flip-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 180° rot) | Pass | Pass (HTTP 200, flipped.pdf) | DONE — VERIFIED LIVE | `live_verify_wave1.ts` | None |
+| 15 | Split PDF in Half | `split-pdf-in-half` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 4 pages) | Pass | Pass (HTTP 200, 300pt halved) | DONE — VERIFIED LIVE | `live_verify_wave1.ts` | None |
+| 16 | Alternate & Mix PDF | `alternate-mix-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, interleaved) | Pass | Pass (HTTP 200, 4 pages) | DONE — VERIFIED LIVE | `live_verify_wave1.ts` | None |
+| 17 | N-up PDF | `n-up-pdf` | Baseline | Complete (pdf-lib) | Pass | Pass (`%PDF-`, 2 sheets) | Pass | Pass (HTTP 200, 2-up sheets) | DONE — VERIFIED LIVE | `live_verify_wave1.ts` | None |
+| 18 | Images to PDF | `images-to-pdf` | Wave 2 | Complete (pdf-lib/JSZip) | Pass | Pass (`%PDF-`, 2 pages) | Pass | Pass (HTTP 200, 1068 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 19 | Word to PDF | `word-to-pdf` | Wave 2 | Complete (JSZip/pdf-lib) | Pass | Pass (`%PDF-`, formatted) | Pass | Pass (HTTP 200, 966 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 20 | Excel to PDF | `excel-to-pdf` | Wave 2 | Complete (XLSX/pdf-lib) | Pass | Pass (`%PDF-`, landscape) | Pass | Pass (HTTP 200, 1462 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 21 | PowerPoint to PDF | `powerpoint-to-pdf` | Wave 2 | Complete (JSZip/pdf-lib) | Pass | Pass (`%PDF-`, 16:9) | Pass | Pass (HTTP 200, 1083 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 22 | HTML to PDF | `html-to-pdf` | Wave 2 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, formatted) | Pass | Pass (HTTP 200, 961 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 23 | TXT to PDF | `txt-to-pdf` | Wave 2 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, wrapped) | Pass | Pass (HTTP 200, 934 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 24 | Markdown to PDF | `markdown-to-pdf` | Wave 2 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, headings/code) | Pass | Pass (HTTP 200, 1036 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 25 | RTF to PDF | `rtf-to-pdf` | Wave 2 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, paragraphs) | Pass | Pass (HTTP 200, 870 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 26 | PDF to JPG | `pdf-to-jpg` | Wave 2 | Complete (pdfjs/jpeg-js) | Pass | Pass (`PK`, `FF D8 FF`) | Pass | Pass (HTTP 200, 2 JPG pages) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 27 | PDF to PNG | `pdf-to-png` | Wave 2 | Complete (pdfjs/fast-png) | Pass | Pass (`PK`, `89 50 4E 47`) | Pass | Pass (HTTP 200, 2 PNG pages) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 28 | PDF to Markdown | `pdf-to-markdown` | Wave 2 | Complete (pdfjs-dist) | Pass | Pass (`.md`, `#` headers) | Pass | Pass (HTTP 200, 47 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 29 | PDF to Word | `pdf-to-word` | Wave 2 | Complete (pdfjs/JSZip) | Pass | Pass (`PK`, OpenXML DOCX) | Pass | Pass (HTTP 200, 2058 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 30 | PDF to RTF | `pdf-to-rtf` | Wave 2 | Complete (pdfjs-dist) | Pass | Pass (`{\rtf1` header) | Pass | Pass (HTTP 200, 192 bytes) | DONE — VERIFIED LIVE | `live_verify_wave2.ts` | None |
+| 31 | Compress PDF | `compress-pdf` | Wave 3 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, stream comp) | Pass | Pass (HTTP 200, 1544 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 32 | OCR PDF | `ocr-pdf` | Wave 3 | Complete (pdfjs/pdf-lib) | Pass | Pass (`%PDF-`, searchable layer) | Pass | Pass (HTTP 200, 2504 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 33 | Watermark PDF | `watermark-pdf` | Wave 3 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, custom text) | Pass | Pass (HTTP 200, 2075 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 34 | Password-Protect PDF | `password-protect-pdf` | Wave 3 | Complete (@cantoo/pdf-lib) | Pass | Pass (`%PDF-`, encrypted) | Pass | Pass (HTTP 200, 1794 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 35 | Unlock PDF | `unlock-pdf` | Wave 3 | Complete (@cantoo/pdf-lib) | Pass | Pass (`%PDF-`, decrypted) | Pass | Pass (HTTP 200, 1794 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 36 | Full PDF Editing | `full-pdf-editing` | Wave 3 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, ops applied) | Pass | Pass (HTTP 200, 1768 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 37 | Scan to PDF | `scan-to-pdf` | Wave 3 | Complete (pdf-lib/JSZip) | Pass | Pass (`%PDF-`, A4 fitted) | Pass | Pass (HTTP 200, 1095 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 38 | PDF to TIFF | `pdf-to-tiff` | Wave 3 | Complete (pdfjs/TIFF 6.0) | Pass | Pass (`II`, 42, 960KB) | Pass | Pass (HTTP 200, 960356 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 39 | PDF to Excel | `pdf-to-excel` | Wave 3 | Complete (pdfjs/xlsx) | Pass | Pass (`PK`, XLSX 2 sheets) | Pass | Pass (HTTP 200, 17054 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 40 | PDF to CSV | `pdf-to-csv` | Wave 3 | Complete (pdfjs-dist) | Pass | Pass (UTF-8, RFC 4180) | Pass | Pass (HTTP 200, 120 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 41 | PDF to PowerPoint | `pdf-to-powerpoint` | Wave 3 | Complete (pdfjs/JSZip) | Pass | Pass (`PK`, OpenXML PPTX) | Pass | Pass (HTTP 200, 5958 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 42 | Grayscale PDF | `grayscale-pdf` | Wave 3 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, DeviceGray) | Pass | Pass (HTTP 200, 1403 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 43 | Deskew PDF | `deskew-pdf` | Wave 3 | Complete (pdf-lib) | Pass | Pass (`%PDF-`, upright) | Pass | Pass (HTTP 200, 1372 bytes) | DONE — VERIFIED LIVE | `live_verify_wave3.ts` | None |
+| 44 | Repair PDF | `repair-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 45 | Header & Footer | `header-footer-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 46 | Bates Numbering | `bates-numbering-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 47 | Annotate PDF | `annotate-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 48 | Flatten PDF | `flatten-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 49 | Resize PDF Pages | `resize-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 50 | Fill PDF Forms | `fill-pdf-forms` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 51 | Create PDF Forms | `create-pdf-forms` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 52 | Sign PDF | `sign-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 53 | Redact PDF | `redact-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 54 | PDF to PDF/A | `pdf-to-pdfa` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 55 | Compare PDF | `compare-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
+| 56 | Extract Images from PDF | `extract-images-from-pdf` | Wave 4 | Not started | Not run | Not run | Not run | Not run | NOT DONE | Scheduled for Wave 4 | Wave 4 target |
