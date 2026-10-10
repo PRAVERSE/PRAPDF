@@ -55,3 +55,4 @@ Thumbs.db
 
 # Oversized test fixtures (>50 MB generated dynamically)
 tests/e2e/fixtures/oversized-53mb.pdf
+tests/e2e/downloads/

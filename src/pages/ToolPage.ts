@@ -2506,9 +2506,17 @@ This text will be formatted and paginated into a clean PDF document.
       // 16. Organize PDF Pages
       case 'organize-pdf':
       case 'organize-pdf-pages': {
+        let count = this.pageThumbnails.length;
+        if (count === 0) {
+          try {
+            count = await getPageCountFast(await file.arrayBuffer());
+          } catch {
+            count = 1;
+          }
+        }
         const pageOrder = this.pageThumbnails.length > 0
           ? this.pageThumbnails.map((p) => ({ pageIndex: p.pageNumber - 1, rotation: p.rotation || 0 }))
-          : Array.from({ length: 1 }, (_, i) => ({ pageIndex: i, rotation: 0 }));
+          : Array.from({ length: count }, (_, i) => ({ pageIndex: i, rotation: 0 }));
         const res = await organizePdfPages(file, pageOrder, { onProgress });
         await this.finishResult(`${baseName}-organized.pdf`, res);
         break;
