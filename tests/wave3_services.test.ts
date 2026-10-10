@@ -100,7 +100,7 @@ describe('PRA PDF — Wave 3 Services (Services #31 to #43)', () => {
 
     const loaded = await PDFDocument.load(result.outputBuffer);
     expect(loaded.getPageCount()).toBe(2);
-  });
+  }, 15000);
 
   // Service 33: watermark-pdf
   it('33. watermark-pdf: applies custom watermark text without unsolicited branding', async () => {

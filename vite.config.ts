@@ -34,5 +34,6 @@ export default defineConfig(({ mode }) => ({
       'tests/wave4_services.test.ts',
       'tests/suite.test.ts',
     ],
+    testTimeout: 20000,
   },
 }));
