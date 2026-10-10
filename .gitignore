@@ -52,3 +52,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Oversized test fixtures (>50 MB generated dynamically)
+tests/e2e/fixtures/oversized-53mb.pdf

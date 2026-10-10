@@ -1,0 +1,200 @@
+{
+  "sample-text.pdf": {
+    "filename": "sample-text.pdf",
+    "sizeBytes": 963,
+    "sha256": "6e1016037ca78a6a817220c02ae3173861d2e7ab6e66278fe45a742d4d3adcd3",
+    "expectedProperties": {
+      "pageCount": 1,
+      "text": "PRA PDF Standard Test Document"
+    },
+    "purpose": "Basic one-page text document"
+  },
+  "multipage.pdf": {
+    "filename": "multipage.pdf",
+    "sizeBytes": 1546,
+    "sha256": "a986fe6b3eb78ba4676489fc9b87f032db1367b2c1804fd4e53f108cb4619cfa",
+    "expectedProperties": {
+      "pageCount": 3
+    },
+    "purpose": "Multi-page document with distinct pages"
+  },
+  "sample-image.pdf": {
+    "filename": "sample-image.pdf",
+    "sizeBytes": 1255,
+    "sha256": "6aef87fe516fa77c11c00b22ceba88768a3ca22c4f6a35ec67f2c8cddbc907b1",
+    "expectedProperties": {
+      "imageCount": 1,
+      "pageCount": 1
+    },
+    "purpose": "PDF containing embedded raster image"
+  },
+  "sample-table.pdf": {
+    "filename": "sample-table.pdf",
+    "sizeBytes": 1026,
+    "sha256": "16fb1183879258b911bb3185db586ef9128621a09dd96e6dc17b9c8d4eead1aa",
+    "expectedProperties": {
+      "hasTable": true,
+      "pageCount": 1
+    },
+    "purpose": "PDF containing tabular structured content"
+  },
+  "sample-form.pdf": {
+    "filename": "sample-form.pdf",
+    "sizeBytes": 2942,
+    "sha256": "ccdf238e82c108695316057d882de87c4ff570bacfb548575e24bdcd71b02dba",
+    "expectedProperties": {
+      "fields": [
+        "fullName",
+        "agreeTerms"
+      ],
+      "pageCount": 1
+    },
+    "purpose": "Interactive AcroForm fields"
+  },
+  "sample-password.txt": {
+    "filename": "sample-password.txt",
+    "sizeBytes": 17,
+    "sha256": "bc73436b0d0776ff1e337d756b2c25a93f935110516bd68e6286418ab75ac2ca",
+    "expectedProperties": {},
+    "purpose": "Password reference for password tests"
+  },
+  "sample-metadata.pdf": {
+    "filename": "sample-metadata.pdf",
+    "sizeBytes": 1037,
+    "sha256": "6727d56a38020146e9ea2ee6f50c429cfb69c4265c0c9113ca1e878a6ea7b0a3",
+    "expectedProperties": {
+      "title": "PRA PDF Official Audit",
+      "author": "PRAVERSE Core Team"
+    },
+    "purpose": "PDF with title and author metadata"
+  },
+  "sample-rotated.pdf": {
+    "filename": "sample-rotated.pdf",
+    "sizeBytes": 884,
+    "sha256": "ceeab854027b58d11af4a6b8b5bbf8fcf098ee3d44bf3570724e829cb64e7132",
+    "expectedProperties": {
+      "rotation": 90,
+      "pageCount": 1
+    },
+    "purpose": "PDF with rotated page"
+  },
+  "damaged-fixture.pdf": {
+    "filename": "damaged-fixture.pdf",
+    "sizeBytes": 991,
+    "sha256": "fd34a59e3f65403a0b6633b1afbe41751d3826d64303b2ca99a4fe1973c71b40",
+    "expectedProperties": {
+      "repairable": true
+    },
+    "purpose": "Damaged PDF structure with recoverable content"
+  },
+  "sample.jpg": {
+    "filename": "sample.jpg",
+    "sizeBytes": 149,
+    "sha256": "05e41fc518431259062337160b3db8ae4d4f6a4796ec9b5d83da297a8a101e7b",
+    "expectedProperties": {
+      "width": 1,
+      "height": 1,
+      "format": "jpg"
+    },
+    "purpose": "Valid JPG image file"
+  },
+  "sample.png": {
+    "filename": "sample.png",
+    "sizeBytes": 70,
+    "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77",
+    "expectedProperties": {
+      "width": 1,
+      "height": 1,
+      "format": "png"
+    },
+    "purpose": "Valid PNG image file"
+  },
+  "sample.txt": {
+    "filename": "sample.txt",
+    "sizeBytes": 77,
+    "sha256": "a4c6e0c29cf89f0934a87731208de02f0c8374ddf8a294aa3dfb0d1099a3bbc7",
+    "expectedProperties": {},
+    "purpose": "Valid plain text file"
+  },
+  "sample.md": {
+    "filename": "sample.md",
+    "sizeBytes": 85,
+    "sha256": "68de86834e2625359dce6ccd76632e57f301ad2c8f72448c0cd594d793834564",
+    "expectedProperties": {},
+    "purpose": "Valid Markdown file"
+  },
+  "sample.rtf": {
+    "filename": "sample.rtf",
+    "sizeBytes": 117,
+    "sha256": "8647ab5d0aca9eb43ab9425e9d8d298e2f1bc02fb0c3834898487733c9eb035d",
+    "expectedProperties": {},
+    "purpose": "Valid RTF file"
+  },
+  "sample.html": {
+    "filename": "sample.html",
+    "sizeBytes": 117,
+    "sha256": "8d2d99fae201276415c7fbd857fe54f340c32e17ecb52720e7f6ea8db087bf78",
+    "expectedProperties": {},
+    "purpose": "Valid HTML file"
+  },
+  "sample.xlsx": {
+    "filename": "sample.xlsx",
+    "sizeBytes": 16295,
+    "sha256": "1832572cd3178b087e9bed6cac1a712d40aa1ffa1cc6dd15dd8257de0e7ae213",
+    "expectedProperties": {
+      "sheets": [
+        "SalesData"
+      ]
+    },
+    "purpose": "Valid XLSX spreadsheet"
+  },
+  "sample.docx": {
+    "filename": "sample.docx",
+    "sizeBytes": 1479,
+    "sha256": "52c0ac6dbf019f6b3230d328927ea5650dc73362d05b58c13a8ab6cee4c7c9bd",
+    "expectedProperties": {},
+    "purpose": "Valid Word DOCX OpenXML document"
+  },
+  "sample.pptx": {
+    "filename": "sample.pptx",
+    "sizeBytes": 1547,
+    "sha256": "0e7aa6d654052770b5e2649f4fb5c4f73881e91540a25ec159e265d09aa2ed14",
+    "expectedProperties": {},
+    "purpose": "Valid PowerPoint PPTX OpenXML document"
+  },
+  "compare-doc1.pdf": {
+    "filename": "compare-doc1.pdf",
+    "sizeBytes": 965,
+    "sha256": "ed0397718cc94ee2865d072771b2599d266dadc19730a55916c8830f2060c34c",
+    "expectedProperties": {
+      "version": "A"
+    },
+    "purpose": "First document for comparison diffing"
+  },
+  "compare-doc2.pdf": {
+    "filename": "compare-doc2.pdf",
+    "sizeBytes": 1003,
+    "sha256": "fce9b48b4a7c9f83eb391acd117f9fbb8a9bf290ae3ee0cd9d91b90853304950",
+    "expectedProperties": {
+      "version": "B"
+    },
+    "purpose": "Second document with additions/modifications"
+  },
+  "corrupt-file.pdf": {
+    "filename": "corrupt-file.pdf",
+    "sizeBytes": 45,
+    "sha256": "c92f6ea4f6377615012b23ddd5d48413ae7a397d17821e1c11f8ce27279d1c5a",
+    "expectedProperties": {},
+    "purpose": "Irrevocably corrupt file for negative rejection tests"
+  },
+  "oversized-53mb.pdf": {
+    "filename": "oversized-53mb.pdf",
+    "sizeBytes": 55574528,
+    "sha256": "computed-on-demand",
+    "expectedProperties": {
+      "sizeBytes": 55574528,
+      "isOversized": true
+    },
+    "purpose": "Upload boundary test (>50 MB strict rejection)"
+  }
+}

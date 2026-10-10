@@ -4,9 +4,9 @@
  * Zero external branding. 100% PRA PDF by PRAVERSE.
  *
  * Status Breakdown:
- *   - 'live': 43 services verified in production Cloudflare Worker (17 baseline + 13 Wave 2 + 13 Wave 3)
+ *   - 'live': 56 services verified in production Cloudflare Worker (All 56 tools 100% LIVE)
  *   - 'implemented': 0 services
- *   - 'coming-soon': 13 services scheduled for Wave 4 implementations
+ *   - 'coming-soon': 0 services
  */
 
 export type ToolCategory =
@@ -444,8 +444,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'optimize',
     categoryLabel: 'Optimize PDF',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 4,
+    status: 'live',
   },
 
   // ==========================================
@@ -479,8 +478,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'edit',
     categoryLabel: 'Edit & Annotate',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 2,
+    status: 'live',
   },
   {
     id: 'bates-numbering-pdf',
@@ -491,8 +489,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Edit & Annotate',
     acceptedExtensions: ['.pdf'],
     multiple: true,
-    status: 'coming-soon',
-    wave: 3,
+    status: 'live',
   },
   {
     id: 'annotate-pdf',
@@ -502,8 +499,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'edit',
     categoryLabel: 'Edit & Annotate',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 3,
+    status: 'live',
   },
   {
     id: 'delete-pdf-annotations',
@@ -523,8 +519,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'edit',
     categoryLabel: 'Edit & Annotate',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 2,
+    status: 'live',
   },
   {
     id: 'resize-pdf',
@@ -534,8 +529,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'edit',
     categoryLabel: 'Edit & Annotate',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 2,
+    status: 'live',
   },
 
   // ==========================================
@@ -549,8 +543,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'forms-signatures',
     categoryLabel: 'Forms & Signatures',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 5,
+    status: 'live',
   },
   {
     id: 'create-pdf-forms',
@@ -560,8 +553,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'forms-signatures',
     categoryLabel: 'Forms & Signatures',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 5,
+    status: 'live',
   },
   {
     id: 'sign-pdf',
@@ -571,8 +563,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'forms-signatures',
     categoryLabel: 'Forms & Signatures',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 5,
+    status: 'live',
   },
 
   // ==========================================
@@ -606,8 +597,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'security',
     categoryLabel: 'PDF Security',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 5,
+    status: 'live',
   },
 
   // ==========================================
@@ -621,8 +611,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'extract-manage',
     categoryLabel: 'Extract & Metadata',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 4,
+    status: 'live',
   },
   {
     id: 'compare-pdf',
@@ -633,8 +622,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     categoryLabel: 'Extract & Metadata',
     acceptedExtensions: ['.pdf'],
     multiple: true,
-    status: 'coming-soon',
-    wave: 4,
+    status: 'live',
   },
   {
     id: 'extract-images-from-pdf',
@@ -644,8 +632,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     category: 'extract-manage',
     categoryLabel: 'Extract & Metadata',
     acceptedExtensions: ['.pdf'],
-    status: 'coming-soon',
-    wave: 2,
+    status: 'live',
   },
   {
     id: 'edit-pdf-metadata',
@@ -751,32 +738,32 @@ const TOOL_VISUALS: Record<string, ToolVisualMeta> = {
   'ocr-pdf': { accentColor: '#0284C7', accentBg: 'rgba(2, 132, 199, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Run OCR', badge: 'LIVE' },
   'grayscale-pdf': { accentColor: '#6B7280', accentBg: 'rgba(107, 114, 128, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to Grayscale', badge: 'LIVE' },
   'deskew-pdf': { accentColor: '#14B8A6', accentBg: 'rgba(20, 184, 166, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Auto-Deskew PDF', badge: 'LIVE' },
-  'repair-pdf': { accentColor: '#EF4444', accentBg: 'rgba(239, 68, 68, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Repair Document', badge: 'COMING SOON' },
+  'repair-pdf': { accentColor: '#EF4444', accentBg: 'rgba(239, 68, 68, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Repair Document', badge: 'LIVE' },
 
   // Edit & Annotate
   'add-page-numbers': { accentColor: '#3B82F6', accentBg: 'rgba(59, 130, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Add Page Numbers', badge: 'LIVE' },
   'watermark-pdf': { accentColor: '#A855F7', accentBg: 'rgba(168, 85, 247, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Apply Watermark', badge: 'LIVE' },
-  'header-footer-pdf': { accentColor: '#3B82F6', accentBg: 'rgba(59, 130, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Add Header & Footer', badge: 'COMING SOON' },
-  'bates-numbering-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF files', actionBtnLabel: 'Add Bates Numbers', badge: 'COMING SOON' },
-  'annotate-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Annotate PDF', badge: 'COMING SOON' },
+  'header-footer-pdf': { accentColor: '#3B82F6', accentBg: 'rgba(59, 130, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Add Header & Footer', badge: 'LIVE' },
+  'bates-numbering-pdf': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF files', actionBtnLabel: 'Add Bates Numbers', badge: 'LIVE' },
+  'annotate-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Annotate PDF', badge: 'LIVE' },
   'delete-pdf-annotations': { accentColor: '#EF4444', accentBg: 'rgba(239, 68, 68, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Delete Annotations', badge: 'LIVE' },
-  'flatten-pdf': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Flatten PDF', badge: 'COMING SOON' },
-  'resize-pdf': { accentColor: '#06B6D4', accentBg: 'rgba(6, 182, 212, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Resize Pages', badge: 'COMING SOON' },
+  'flatten-pdf': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Flatten PDF', badge: 'LIVE' },
+  'resize-pdf': { accentColor: '#06B6D4', accentBg: 'rgba(6, 182, 212, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Resize Pages', badge: 'LIVE' },
 
   // Forms & Signatures
-  'fill-pdf-forms': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF Form', actionBtnLabel: 'Fill Form Fields', badge: 'COMING SOON' },
-  'create-pdf-forms': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Build Form Fields', badge: 'COMING SOON' },
-  'sign-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Sign Document', badge: 'COMING SOON' },
+  'fill-pdf-forms': { accentColor: '#10B981', accentBg: 'rgba(16, 185, 129, 0.12)', selectBtnLabel: 'Select PDF Form', actionBtnLabel: 'Fill Form Fields', badge: 'LIVE' },
+  'create-pdf-forms': { accentColor: '#8B5CF6', accentBg: 'rgba(139, 92, 246, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Build Form Fields', badge: 'LIVE' },
+  'sign-pdf': { accentColor: '#E11D48', accentBg: 'rgba(225, 29, 72, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Sign Document', badge: 'LIVE' },
 
   // Security
   'password-protect-pdf': { accentColor: '#7C3AED', accentBg: 'rgba(124, 58, 237, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Protect PDF', badge: 'LIVE' },
   'unlock-pdf': { accentColor: '#EC4899', accentBg: 'rgba(236, 72, 153, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Unlock PDF', badge: 'LIVE' },
-  'redact-pdf': { accentColor: '#DC2626', accentBg: 'rgba(220, 38, 38, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Redact Text & Areas', badge: 'COMING SOON' },
+  'redact-pdf': { accentColor: '#DC2626', accentBg: 'rgba(220, 38, 38, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Redact Text & Areas', badge: 'LIVE' },
 
   // Extract & Metadata
-  'pdf-to-pdfa': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PDF/A', badge: 'COMING SOON' },
-  'compare-pdf': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select 2 PDF files', actionBtnLabel: 'Compare Documents', badge: 'COMING SOON' },
-  'extract-images-from-pdf': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Images', badge: 'COMING SOON' },
+  'pdf-to-pdfa': { accentColor: '#059669', accentBg: 'rgba(5, 150, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Convert to PDF/A', badge: 'LIVE' },
+  'compare-pdf': { accentColor: '#F59E0B', accentBg: 'rgba(245, 158, 11, 0.12)', selectBtnLabel: 'Select 2 PDF files', actionBtnLabel: 'Compare Documents', badge: 'LIVE' },
+  'extract-images-from-pdf': { accentColor: '#F43F5E', accentBg: 'rgba(244, 63, 94, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Images', badge: 'LIVE' },
   'edit-pdf-metadata': { accentColor: '#475569', accentBg: 'rgba(71, 85, 105, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Save Metadata', badge: 'LIVE' },
   'extract-pdf-text': { accentColor: '#0D9488', accentBg: 'rgba(13, 148, 136, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Extract Text', badge: 'LIVE' },
   'full-pdf-editing': { accentColor: '#6366F1', accentBg: 'rgba(99, 102, 241, 0.12)', selectBtnLabel: 'Select PDF file', actionBtnLabel: 'Open PDF Studio', badge: 'LIVE' },

@@ -60,6 +60,21 @@ import { processPdfToPowerpointWorker } from './engines/pdfToPowerpoint';
 import { processGrayscalePdfWorker } from './engines/grayscalePdf';
 import { processDeskewPdfWorker } from './engines/deskewPdf';
 
+// Wave 4 Engines (13 services #44 to #56)
+import { processRepairPdfWorker } from './engines/repairPdf';
+import { processHeaderFooterPdfWorker } from './engines/headerFooterPdf';
+import { processBatesNumberingPdfWorker } from './engines/batesNumberingPdf';
+import { processAnnotatePdfWorker } from './engines/annotatePdf';
+import { processFlattenPdfWorker } from './engines/flattenPdf';
+import { processResizePdfWorker } from './engines/resizePdf';
+import { processFillPdfFormsWorker } from './engines/fillPdfForms';
+import { processCreatePdfFormsWorker } from './engines/createPdfForms';
+import { processSignPdfWorker } from './engines/signPdf';
+import { processRedactPdfWorker } from './engines/redactPdf';
+import { processPdfToPdfaWorker } from './engines/pdfToPdfa';
+import { processComparePdfWorker } from './engines/comparePdf';
+import { processExtractImagesFromPdfWorker } from './engines/extractImagesFromPdf';
+
 export const SUPPORTED_WORKER_SERVICES: WorkerServiceName[] = [
   // Phase 1 (8)
   'jpg-to-pdf',
@@ -111,6 +126,20 @@ export const SUPPORTED_WORKER_SERVICES: WorkerServiceName[] = [
   'pdf-to-powerpoint',
   'grayscale-pdf',
   'deskew-pdf',
+  // Wave 4 (13 services #44 to #56)
+  'repair-pdf',
+  'header-footer-pdf',
+  'bates-numbering-pdf',
+  'annotate-pdf',
+  'flatten-pdf',
+  'resize-pdf',
+  'fill-pdf-forms',
+  'create-pdf-forms',
+  'sign-pdf',
+  'redact-pdf',
+  'pdf-to-pdfa',
+  'compare-pdf',
+  'extract-images-from-pdf',
 ];
 
 export interface WorkerJobSuccessResponse {
@@ -264,6 +293,34 @@ export async function executeWorkerService(
       return await processGrayscalePdfWorker(singleBuffer, options);
     case 'deskew-pdf':
       return await processDeskewPdfWorker(singleBuffer, options);
+
+    // Wave 4 (13 services #44 to #56)
+    case 'repair-pdf':
+      return await processRepairPdfWorker(singleBuffer, options);
+    case 'header-footer-pdf':
+      return await processHeaderFooterPdfWorker(singleBuffer, options);
+    case 'bates-numbering-pdf':
+      return await processBatesNumberingPdfWorker(singleBuffer, options);
+    case 'annotate-pdf':
+      return await processAnnotatePdfWorker(singleBuffer, options);
+    case 'flatten-pdf':
+      return await processFlattenPdfWorker(singleBuffer, options);
+    case 'resize-pdf':
+      return await processResizePdfWorker(singleBuffer, options);
+    case 'fill-pdf-forms':
+      return await processFillPdfFormsWorker(singleBuffer, options);
+    case 'create-pdf-forms':
+      return await processCreatePdfFormsWorker(singleBuffer, options);
+    case 'sign-pdf':
+      return await processSignPdfWorker(singleBuffer, options);
+    case 'redact-pdf':
+      return await processRedactPdfWorker(singleBuffer, options);
+    case 'pdf-to-pdfa':
+      return await processPdfToPdfaWorker(singleBuffer, options);
+    case 'compare-pdf':
+      return await processComparePdfWorker(inputBuffer, options);
+    case 'extract-images-from-pdf':
+      return await processExtractImagesFromPdfWorker(singleBuffer, options);
 
     default:
       throw new Error(`Unsupported service: ${service}`);

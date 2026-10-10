@@ -67,6 +67,7 @@ import {
 import { addPageNumbersToPdf, watermarkPdf, fullPdfEdit } from '../services/annotatePdf';
 import { compressPdf, ocrPdf } from '../services/optimizeAndOcr';
 import { passwordProtectPdf, unlockPdf } from '../services/securityPdf';
+import { postFormDataWithProgress } from '../services/core/networkClient';
 
 interface PageThumbnailItem {
   pageNumber: number;
@@ -2726,8 +2727,46 @@ This text will be formatted and paginated into a clean PDF document.
         break;
       }
 
-      default:
-        throw new Error(`Tool "${this.tool.title}" is being routed.`);
+      default: {
+        // Universal Cloudflare Worker Processing Pipeline for all services
+        const formData = new FormData();
+        for (const f of this.selectedFiles) {
+          formData.append('files', f);
+        }
+        formData.append('service', this.tool.id);
+
+        // Collect any custom option inputs from sidebar panel
+        const opts: Record<string, any> = {};
+        const inputs = this.container.querySelectorAll('[id^="opt-"]') as NodeListOf<HTMLInputElement | HTMLSelectElement>;
+        inputs.forEach((input) => {
+          const key = input.id.replace(/^opt-/, '');
+          if ((input as HTMLInputElement).type === 'checkbox') {
+            opts[key] = (input as HTMLInputElement).checked;
+          } else {
+            opts[key] = input.value;
+          }
+        });
+        formData.append('options', JSON.stringify(opts));
+
+        const json = await postFormDataWithProgress<any>('/api/v1/cf/process', formData, {
+          onProgress,
+          serviceName: this.tool.id,
+        });
+
+        if (!json.success || !json.outputBase64) {
+          throw new Error(json.message || `Processing failed for ${this.tool.title}`);
+        }
+
+        const binaryString = atob(json.outputBase64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        await this.finishResult(json.outputFileName || `${baseName}-processed.pdf`, bytes);
+        break;
+      }
     }
   }
 

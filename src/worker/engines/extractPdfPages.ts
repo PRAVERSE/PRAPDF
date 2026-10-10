@@ -96,7 +96,7 @@ export async function processExtractPdfPagesWorker(
   }
 
   let indices: number[] = [];
-  const spec = options?.pagesToExtractSpec || (options as any)?.range || (options as any)?.ranges;
+  const spec = options?.pagesToExtractSpec || (options as any)?.pageRanges || (options as any)?.range || (options as any)?.ranges;
   if (spec) {
     indices = parseRangeString(
       spec,

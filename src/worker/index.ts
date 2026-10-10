@@ -125,6 +125,20 @@ export const ACTIVE_PRODUCTION_SERVICES: WorkerServiceName[] = [
   'pdf-to-powerpoint',
   'grayscale-pdf',
   'deskew-pdf',
+  // Wave 4 Services (13 services #44 to #56)
+  'repair-pdf',
+  'header-footer-pdf',
+  'bates-numbering-pdf',
+  'annotate-pdf',
+  'flatten-pdf',
+  'resize-pdf',
+  'fill-pdf-forms',
+  'create-pdf-forms',
+  'sign-pdf',
+  'redact-pdf',
+  'pdf-to-pdfa',
+  'compare-pdf',
+  'extract-images-from-pdf',
   // Canonical Aliases
   'organize-pdf-pages',
   'rtf-conversion',
@@ -378,7 +392,7 @@ export default {
               (b) => b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
             );
           expectedTypeMsg = 'Invalid file format. Only PNG images are supported for png-to-pdf.';
-        } else if (serviceName === 'merge-pdf' || serviceName === 'alternate-mix-pdf') {
+        } else if (serviceName === 'merge-pdf' || serviceName === 'alternate-mix-pdf' || serviceName === 'compare-pdf') {
           const toCheck = inputBuffers && inputBuffers.length > 0 ? inputBuffers : (inputBuffer ? [inputBuffer] : []);
           fileTypeValid =
             toCheck.length > 0 &&
@@ -444,11 +458,12 @@ export default {
           serviceName === 'jpg-to-pdf' ||
           serviceName === 'png-to-pdf' ||
           serviceName === 'merge-pdf' ||
-          serviceName === 'alternate-mix-pdf';
+          serviceName === 'alternate-mix-pdf' ||
+          serviceName === 'compare-pdf';
 
         const targetInput =
           isMultiBufferService && inputBuffers
-            ? (inputBuffers.length === 1 && serviceName !== 'alternate-mix-pdf' && serviceName !== 'merge-pdf'
+            ? (inputBuffers.length === 1 && serviceName !== 'alternate-mix-pdf' && serviceName !== 'merge-pdf' && serviceName !== 'compare-pdf'
                 ? inputBuffers[0]
                 : inputBuffers)
             : inputBuffer!;

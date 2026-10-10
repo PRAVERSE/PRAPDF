@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'https://pra-pdf.praverse-auth.workers.dev',
         changeOrigin: true,
       },
     },
@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => ({
       'tests/wave1_services.test.ts',
       'tests/wave2_services.test.ts',
       'tests/wave3_services.test.ts',
+      'tests/wave4_services.test.ts',
       'tests/suite.test.ts',
     ],
   },

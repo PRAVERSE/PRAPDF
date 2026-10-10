@@ -17,14 +17,14 @@ describe('PRA PDF Master Specification Verification', () => {
     }
   });
 
-  it('reconciles exact counts: 43 Live, 0 Implemented, 13 Coming Soon', () => {
+  it('reconciles exact counts: 56 Live, 0 Implemented, 0 Coming Soon', () => {
     const live = getLiveTools();
     const implemented = getImplementedTools();
     const comingSoon = getComingSoonTools();
 
-    expect(live.length).toBe(43);
+    expect(live.length).toBe(56);
     expect(implemented.length).toBe(0);
-    expect(comingSoon.length).toBe(13);
+    expect(comingSoon.length).toBe(0);
     expect(live.length + implemented.length + comingSoon.length).toBe(56);
   });
 

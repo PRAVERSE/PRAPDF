@@ -53,7 +53,21 @@ export type WorkerServiceName =
   | 'pdf-to-csv'
   | 'pdf-to-powerpoint'
   | 'grayscale-pdf'
-  | 'deskew-pdf';
+  | 'deskew-pdf'
+  // Wave 4 Services (#44 to #56)
+  | 'repair-pdf'
+  | 'header-footer-pdf'
+  | 'bates-numbering-pdf'
+  | 'annotate-pdf'
+  | 'flatten-pdf'
+  | 'resize-pdf'
+  | 'fill-pdf-forms'
+  | 'create-pdf-forms'
+  | 'sign-pdf'
+  | 'redact-pdf'
+  | 'pdf-to-pdfa'
+  | 'compare-pdf'
+  | 'extract-images-from-pdf';
 
 export interface WorkerEngineResult {
   service: WorkerServiceName;
