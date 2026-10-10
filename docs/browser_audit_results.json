@@ -879,7 +879,7 @@
     "downloadTriggered": true,
     "downloadedBytes": 1684,
     "outputValidated": true,
-    "validationDetails": "Electronic signature seal + SHA-256 audit digest embedded",
+    "validationDetails": "Visual electronic signature seal + SHA-256 audit digest embedded (non-PKI)",
     "durationMs": 1657,
     "screenshotPath": "C:\\Users\\hp\\OneDrive\\Desktop\\PRAPDF\\pra-pdf\\tests\\e2e\\screenshots\\service_52_sign-pdf.png"
   },
@@ -913,7 +913,7 @@
     "downloadTriggered": true,
     "downloadedBytes": 2919,
     "outputValidated": true,
-    "validationDetails": "ISO 19005-1 (PDF/A-1b) conformance verified (Header: true, XMP: true, OutputIntent: true)",
+    "validationDetails": "ISO 19005-1 structural markers verified (Header: true, XMP: true, OutputIntent: true; best-effort archival enhancement)",
     "durationMs": 2487,
     "screenshotPath": "C:\\Users\\hp\\OneDrive\\Desktop\\PRAPDF\\pra-pdf\\tests\\e2e\\screenshots\\service_54_pdf-to-pdfa.png"
   },

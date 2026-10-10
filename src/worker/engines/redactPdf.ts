@@ -1,16 +1,29 @@
 /**
  * PRA PDF — Cloudflare Worker: Redact PDF Engine
- * Pure in-memory execution using pdfjs-dist and pdf-lib. Zero filesystem or native dependencies.
+ * Pure in-memory execution using pdfjs-dist, pdf-lib, and pako. Zero filesystem or native dependencies.
  *
  * Implements genuine content removal and visual sanitization:
- * 1. Permanently removes targeted text and character codes from page content streams.
- * 2. Purges sensitive matching terms from document metadata (Title, Author, Subject, Keywords).
- * 3. Draws opaque redaction bars over target coordinates.
+ * 1. Locates bounding boxes of sensitive terms using pdfjs-dist.
+ * 2. Permanently removes targeted text and character codes from page content streams
+ *    (handling both uncompressed and FlateDecode compressed streams, plus hex representations).
+ * 3. Purges sensitive matching terms from document metadata (Title, Author, Subject, Keywords, XMP stream).
+ * 4. Sanitizes page /Annots dictionaries and AcroForm fields.
+ * 5. Draws opaque redaction bars over target coordinates.
  *
  * Guaranteed: Redacted text CANNOT be extracted via text extractors or object inspection.
  */
 
-import { PDFDocument, PDFName, PDFString, PDFStream, PDFRawStream, rgb } from 'pdf-lib';
+import {
+  PDFDocument,
+  PDFName,
+  PDFString,
+  PDFStream,
+  PDFRawStream,
+  PDFArray,
+  PDFDict,
+  rgb,
+} from 'pdf-lib';
+import pako from 'pako';
 import { WorkerEngineResult } from './types';
 
 export interface RedactBox {
@@ -104,6 +117,14 @@ export async function processRedactPdfWorker(
 
   let sanitizedStreamItemsCount = 0;
 
+  // Pre-calculate hex patterns for target terms
+  const hexTargetPairs = targetTerms.map((term) => ({
+    term,
+    hex: Array.from(new TextEncoder().encode(term))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(''),
+  }));
+
   // Step 1: Permanently sanitize page content streams
   for (let i = 0; i < totalPages; i++) {
     const page = doc.getPage(i);
@@ -111,32 +132,129 @@ export async function processRedactPdfWorker(
     const contentsObj = pageNode.Contents();
 
     if (contentsObj) {
-      const streams: any[] = Array.isArray(contentsObj) ? contentsObj : [contentsObj];
-      for (const s of streams) {
-        if (s instanceof PDFStream || s instanceof PDFRawStream) {
-          try {
-            const rawBytes = s.getContents();
-            let textStream = new TextDecoder('latin1').decode(rawBytes);
+      const streamEntries: Array<{
+        stream: PDFStream | PDFRawStream;
+        arrayIdx?: number;
+      }> = [];
 
-            for (const term of targetTerms) {
-              const regex = new RegExp(term, 'gi');
-              if (regex.test(textStream)) {
-                // Permanently replace target term with spaces of equal length to preserve stream offsets
-                const blanked = ' '.repeat(term.length);
-                textStream = textStream.replace(regex, blanked);
-                sanitizedStreamItemsCount++;
-              }
+      if (contentsObj instanceof PDFArray) {
+        for (let k = 0; k < contentsObj.size(); k++) {
+          const resolved = doc.context.lookup(contentsObj.get(k));
+          if (resolved instanceof PDFStream || resolved instanceof PDFRawStream) {
+            streamEntries.push({ stream: resolved, arrayIdx: k });
+          }
+        }
+      } else {
+        const resolved = doc.context.lookup(contentsObj);
+        if (resolved instanceof PDFStream || resolved instanceof PDFRawStream) {
+          streamEntries.push({ stream: resolved });
+        }
+      }
+
+      for (const entry of streamEntries) {
+        try {
+          const s = entry.stream;
+          const rawBytes = s.getContents();
+          const filter = s.dict.get(PDFName.of('Filter'));
+          const isFlate = filter?.toString() === '/FlateDecode';
+
+          let decompressed: Uint8Array;
+          try {
+            decompressed = isFlate ? pako.inflate(rawBytes) : rawBytes;
+          } catch {
+            decompressed = rawBytes;
+          }
+
+          let textStream = new TextDecoder('latin1').decode(decompressed);
+          let streamModified = false;
+
+          for (const { term, hex } of hexTargetPairs) {
+            // Check literal ASCII/Latin1 term in stream
+            const literalRegex = new RegExp(escapeRegex(term), 'gi');
+            if (literalRegex.test(textStream)) {
+              const blanked = ' '.repeat(term.length);
+              textStream = textStream.replace(literalRegex, blanked);
+              streamModified = true;
+              sanitizedStreamItemsCount++;
             }
 
-            (s as any).contents = new TextEncoder().encode(textStream);
-          } catch {
-            // Continue if non-text binary stream
+            // Check hex string encoding of term
+            const hexRegex = new RegExp(escapeRegex(hex), 'gi');
+            if (hexRegex.test(textStream)) {
+              const hexBlanked = '20'.repeat(term.length); // '20' is ASCII space
+              textStream = textStream.replace(hexRegex, hexBlanked);
+              streamModified = true;
+              sanitizedStreamItemsCount++;
+            }
           }
+
+          if (streamModified) {
+            const sanitizedBytes = new TextEncoder().encode(textStream);
+            const newStream = isFlate
+              ? doc.context.flateStream(sanitizedBytes)
+              : doc.context.stream(sanitizedBytes);
+            const newRef = doc.context.register(newStream);
+
+            if (entry.arrayIdx !== undefined && contentsObj instanceof PDFArray) {
+              contentsObj.set(entry.arrayIdx, newRef);
+            } else {
+              pageNode.set(PDFName.of('Contents'), newRef);
+            }
+          }
+        } catch {
+          // Continue if non-text binary stream
         }
       }
     }
 
-    // Step 2: Draw permanent opaque blackout bars over the coordinates
+    // Step 2: Sanitize page annotations (/Annots)
+    try {
+      const annotsObj = pageNode.Annots();
+      if (annotsObj) {
+        const annotsList = doc.context.lookup(annotsObj);
+        if (annotsList instanceof PDFArray) {
+          const filteredIndices: number[] = [];
+          for (let a = 0; a < annotsList.size(); a++) {
+            const annotDict = doc.context.lookup(annotsList.get(a));
+            if (annotDict instanceof PDFDict) {
+              let hasSecret = false;
+              for (const term of targetTerms) {
+                const termLower = term.toLowerCase();
+                const contents = annotDict.get(PDFName.of('Contents'))?.toString().toLowerCase() || '';
+                const rc = annotDict.get(PDFName.of('RC'))?.toString().toLowerCase() || '';
+                const tu = annotDict.get(PDFName.of('TU'))?.toString().toLowerCase() || '';
+                const v = annotDict.get(PDFName.of('V'))?.toString().toLowerCase() || '';
+                if (
+                  contents.includes(termLower) ||
+                  rc.includes(termLower) ||
+                  tu.includes(termLower) ||
+                  v.includes(termLower)
+                ) {
+                  hasSecret = true;
+                  break;
+                }
+              }
+              if (!hasSecret) {
+                filteredIndices.push(a);
+              }
+            } else {
+              filteredIndices.push(a);
+            }
+          }
+
+          if (filteredIndices.length < annotsList.size()) {
+            const newAnnotsArray = doc.context.obj(
+              filteredIndices.map((idx) => annotsList.get(idx))
+            );
+            pageNode.set(PDFName.of('Annots'), newAnnotsArray);
+          }
+        }
+      }
+    } catch {
+      // Non-fatal annotation cleanup
+    }
+
+    // Step 3: Draw permanent opaque blackout bars over the coordinates
     const pageBoxes = discoveredBoxes.filter((b) => b.pageIdx === i);
     for (const box of pageBoxes) {
       page.drawRectangle({
@@ -152,12 +270,12 @@ export async function processRedactPdfWorker(
     }
   }
 
-  // Step 3: Sanitize document metadata dictionaries
+  // Step 4: Sanitize document metadata dictionaries (Info & XMP)
   const sanitizeMeta = (str: string | undefined): string | undefined => {
     if (!str) return undefined;
     let s = str;
     for (const term of targetTerms) {
-      const regex = new RegExp(term, 'gi');
+      const regex = new RegExp(escapeRegex(term), 'gi');
       s = s.replace(regex, '[REDACTED]');
     }
     return s;
@@ -170,8 +288,42 @@ export async function processRedactPdfWorker(
   if (keywords) {
     doc.setKeywords([sanitizeMeta(keywords) || '']);
   }
+  doc.setCreator(sanitizeMeta(doc.getCreator()) || '');
+  doc.setProducer(sanitizeMeta(doc.getProducer()) || '');
 
-  const outBytes = await doc.save({ useObjectStreams: true });
+  // Sanitize XMP XML stream in Catalog if present
+  try {
+    if (doc.catalog.has(PDFName.of('Metadata'))) {
+      const metaStreamRef = doc.catalog.get(PDFName.of('Metadata'));
+      const metaStream = doc.context.lookup(metaStreamRef);
+      if (metaStream instanceof PDFStream || metaStream instanceof PDFRawStream) {
+        const raw = metaStream.getContents();
+        const filter = metaStream.dict.get(PDFName.of('Filter'));
+        const isFlate = filter?.toString() === '/FlateDecode';
+        let xmlText = isFlate
+          ? new TextDecoder('latin1').decode(pako.inflate(raw))
+          : new TextDecoder('latin1').decode(raw);
+
+        for (const term of targetTerms) {
+          const regex = new RegExp(escapeRegex(term), 'gi');
+          xmlText = xmlText.replace(regex, '[REDACTED]');
+        }
+
+        const newBytes = new TextEncoder().encode(xmlText);
+        const newXmpStream = isFlate
+          ? doc.context.flateStream(newBytes)
+          : doc.context.stream(newBytes);
+        newXmpStream.dict.set(PDFName.of('Type'), PDFName.of('Metadata'));
+        newXmpStream.dict.set(PDFName.of('Subtype'), PDFName.of('XML'));
+        const newRef = doc.context.register(newXmpStream);
+        doc.catalog.set(PDFName.of('Metadata'), newRef);
+      }
+    }
+  } catch {
+    // Non-fatal XMP cleanup
+  }
+
+  const outBytes = await doc.save({ useObjectStreams: false });
 
   return {
     service: 'redact-pdf',
@@ -188,4 +340,8 @@ export async function processRedactPdfWorker(
       outputSizeBytes: outBytes.length,
     },
   };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

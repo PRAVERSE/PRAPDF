@@ -2076,6 +2076,67 @@ This text will be formatted and paginated into a clean PDF document.
           </div>
         `;
 
+      case 'sign-pdf':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Signer Full Name</label>
+              <input type="text" class="form-input" id="opt-signerName" value="Authorized Signer" placeholder="e.g. John Doe" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Signing Reason</label>
+              <input type="text" class="form-input" id="opt-reason" value="Document Approval & Acceptance" placeholder="e.g. Approved and Verified" />
+            </div>
+            <div class="sidebar-info-box" style="border-left: 3px solid #0284c7; background: rgba(2, 132, 199, 0.08); padding: 10px; border-radius: 6px;">
+              <div class="info-box-icon" style="font-size: 1.2rem;">🖋️</div>
+              <div class="info-box-text" style="font-size: 0.85rem; line-height: 1.4;">
+                <strong>Visual Electronic Signature:</strong> Embeds a visual approval mark, signing timestamp, and cryptographic <strong>SHA-256 document audit hash</strong>.
+                <br/><em style="opacity: 0.85;">Note: Produces an audit-trailed visual electronic signature; not an X.509 PKI certificate digital signature.</em>
+              </div>
+            </div>
+          </div>
+        `;
+
+      case 'pdf-to-pdfa':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Archival Conformance Level</label>
+              <select class="form-select" id="opt-conformanceLevel">
+                <option value="1b" selected>PDF/A-1b (ISO 19005-1:2005 Basic Visual Preservation)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Archival Document Title</label>
+              <input type="text" class="form-input" id="opt-title" placeholder="Optional document title" />
+            </div>
+            <div class="sidebar-info-box" style="border-left: 3px solid #059669; background: rgba(5, 150, 105, 0.08); padding: 10px; border-radius: 6px;">
+              <div class="info-box-icon" style="font-size: 1.2rem;">🏛️</div>
+              <div class="info-box-text" style="font-size: 0.85rem; line-height: 1.4;">
+                <strong>Archival Enhancement Mode:</strong> Best-effort archival enhancement. Neutralizes dynamic actions, registers GTS_PDFA1 OutputIntents (sRGB), injects ISO 19005-1 XMP metadata, and stabilizes object streams.
+                <br/><em style="opacity: 0.85;">Note: External veraPDF font embedding compliance depends on source document font structures.</em>
+              </div>
+            </div>
+          </div>
+        `;
+
+      case 'redact-pdf':
+        return `
+          <div class="options-stack">
+            <div class="form-group">
+              <label class="form-label">Sensitive Terms to Redact (Comma-separated)</label>
+              <input type="text" class="form-input" id="opt-terms" placeholder="Confidential, SSN, Secret, 999-88-7777" />
+            </div>
+            <div class="sidebar-info-box" style="border-left: 3px solid #dc2626; background: rgba(220, 38, 38, 0.08); padding: 10px; border-radius: 6px;">
+              <div class="info-box-icon" style="font-size: 1.2rem;">🔒</div>
+              <div class="info-box-text" style="font-size: 0.85rem; line-height: 1.4;">
+                <strong>Permanent Content Excision:</strong> Irreversibly purges matched text from content streams (compressed & decompressed), sanitizes metadata/annotations, and renders opaque blackout rectangles.
+                <br/><em style="opacity: 0.85;">Note: Excision permanently strips text tokens and metadata. Embedded bitmap images are visually masked by opaque blackout rectangles; underlying raster bitmap pixels are not re-encoded.</em>
+              </div>
+            </div>
+          </div>
+        `;
+
       default:
         return '';
     }

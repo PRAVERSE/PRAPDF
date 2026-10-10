@@ -839,7 +839,7 @@ export const ALL_56_SERVICES: ServiceTestDefinition[] = [
       const hasPdfaId = rawText.includes('pdfaid:part') && rawText.includes('pdfaid:conformance');
       const hasOutputIntent = rawText.includes('GTS_PDFA1');
       const compliant = hasHeader && hasPdfaId && hasOutputIntent;
-      return { valid: compliant, details: `ISO 19005-1 (PDF/A-1b) conformance verified (Header: ${hasHeader}, XMP: ${hasPdfaId}, OutputIntent: ${hasOutputIntent})` };
+      return { valid: compliant, details: `ISO 19005-1 structural markers verified (Header: ${hasHeader}, XMP: ${hasPdfaId}, OutputIntent: ${hasOutputIntent}; best-effort archival enhancement)` };
     },
   },
   {
